@@ -36,7 +36,8 @@ o `scrcpy` a usar um `adb` que funciona, via variável de ambiente `ADB`.
   celular, manter acordado, sem áudio, sempre no topo, somente visualizar.
 - **Detecção dos binários** — encontra `adb` e `scrcpy` em vários caminhos comuns
   (Android SDK, WinGet, Homebrew, `/usr/bin`) e avisa se faltar algum.
-- **Scripts `.bat`** para quem quer só clicar duas vezes, sem abrir o painel.
+- **Launcher de dois cliques** — `0 - Abrir Painel.bat` instala o que faltar e
+  abre o painel no navegador, sem digitar comando nenhum.
 
 ## Como funciona o pareamento por QR
 
@@ -49,7 +50,26 @@ Feito o pareamento, ele descobre o `_adb-tls-connect._tcp` e conecta.
 A senha do QR é gerada aleatoriamente a cada sessão e **nunca é enviada ao
 navegador** — só a imagem do QR sai do servidor.
 
+## Começo rápido (Windows, dois cliques)
+
+1. Baixe o projeto: [Code → Download ZIP](https://github.com/caducosilva/celular-no-pc/archive/refs/heads/main.zip)
+   e extraia em qualquer pasta (por exemplo `Downloads\celular-no-pc`).
+2. Abra a pasta `scripts` e dê **dois cliques** em `0 - Abrir Painel.bat`.
+3. Na primeira vez ele instala sozinho o que faltar (Node.js, adb, scrcpy) e
+   baixa as dependências. Pode pedir permissão do Windows e demorar alguns
+   minutos. Nas próximas vezes abre na hora.
+4. O navegador abre em <http://localhost:3000>.
+5. No celular: **Configurações → Opções do desenvolvedor → Depuração sem fio**,
+   na mesma rede Wi-Fi do PC (rede de convidado / *AP isolation* não funciona).
+
+Pronto. O resto é clicar na interface.
+
+> Se o Windows instalar o Node.js e o `npm` ainda não for reconhecido, feche a
+> janela e abra o `.bat` de novo. É o Windows atualizando o PATH.
+
 ## Requisitos
+
+Se preferir instalar à mão:
 
 | Ferramenta | Instalação (Windows) |
 | --- | --- |
@@ -57,14 +77,10 @@ navegador** — só a imagem do QR sai do servidor.
 | `adb` (Platform Tools) | `winget install Google.PlatformTools` |
 | `scrcpy` | `winget install Genymobile.scrcpy` |
 
-No celular: **Configurações → Opções do desenvolvedor → Depuração sem fio**
-ligada, com o aparelho na mesma rede Wi-Fi do computador (redes de convidado e
-roteadores com *AP isolation* não funcionam).
-
 Testado no Windows 11 com um Galaxy S25 Ultra (Android 16). A detecção de
 binários tem caminhos para Linux e macOS, mas o alvo principal é o Windows.
 
-## Uso
+## Uso (via terminal)
 
 ```bash
 npm install
@@ -81,14 +97,15 @@ Abra <http://localhost:3000>.
 
 ### Scripts sem interface
 
-Quem não quer subir o painel pode usar os dois `.bat` da pasta [`scripts/`](scripts):
+Quem não quer subir o painel pode usar os `.bat` da pasta [`scripts/`](scripts):
 
-- `1 - Parear Celular.bat` — gera o QR, pareia e conecta.
-- `2 - Usar Celular no PC.bat` — conecta e abre o espelhamento.
+- `0 - Abrir Painel.bat` — instala o que falta e abre o painel no navegador.
+- `1 - Parear Celular.bat` — gera o QR, pareia e conecta (sem painel).
+- `2 - Usar Celular no PC.bat` — conecta e abre o espelhamento (sem painel).
 
-São autocontidos (batch + PowerShell no mesmo arquivo) e não dependem do painel.
-O primeiro usa Python com a biblioteca `qrcode` para desenhar o QR; ele instala a
-lib sozinho na primeira execução.
+São autocontidos (batch + PowerShell no mesmo arquivo). O `1` usa Python com a
+biblioteca `qrcode` para desenhar o QR; ele instala a lib sozinho na primeira
+execução.
 
 ## Estrutura
 
