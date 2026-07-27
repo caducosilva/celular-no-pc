@@ -53,9 +53,14 @@ export default function PairPanel({ onPaired }: { onPaired: () => void }) {
 
     const timer = window.setInterval(async () => {
       forceTick((n) => n + 1); // atualiza o contador regressivo
-      const resposta = await fetch("/api/pair");
-      const dados = await resposta.json();
-      if (dados.session) setSession(dados.session);
+      try {
+        const resposta = await fetch("/api/pair");
+        if (!resposta.ok) return;
+        const dados = await resposta.json();
+        if (dados.session) setSession(dados.session);
+      } catch {
+        // servidor reiniciou ou caiu: tenta de novo no proximo tick
+      }
     }, 1200);
 
     return () => window.clearInterval(timer);

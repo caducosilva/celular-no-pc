@@ -109,9 +109,36 @@ src/
 
 ## Segurança
 
-O servidor executa binários locais, então **sirva apenas em `localhost`**. Não
-exponha esta aplicação na internet nem em uma porta pública: qualquer pessoa com
-acesso a ela poderia parear um aparelho e abrir espelhamentos na sua máquina.
+O servidor executa binários locais, então quem alcança a página consegue parear
+um aparelho e abrir espelhamentos na máquina. Por isso o acesso é travado em
+duas camadas:
+
+1. Os scripts `dev` e `start` sobem o servidor preso em `127.0.0.1`, e não em
+   todas as interfaces. Abrir pelo IP da rede dá conexão recusada.
+2. O [`src/proxy.ts`](src/proxy.ts) rejeita com **403** qualquer requisição cujo
+   `Host` não seja loopback, e qualquer `Origin` que não seja loopback. Isso
+   cobre o caso de alguém subir o servidor com `-H 0.0.0.0` sem perceber, e
+   também bloqueia um site externo tentando falar com `http://localhost:3000`
+   pelo seu navegador (DNS rebinding / CSRF).
+
+**Não remova essas travas para acessar de outro computador.** Se precisar disso,
+use um túnel SSH em vez de expor a porta.
+
+### Sobre o QR code de pareamento
+
+O QR contém apenas um nome e uma senha aleatórios, gerados na hora. Ele **não**
+contém a senha do seu Wi-Fi (apesar do prefixo `WIFI:`, o tipo é `ADB`, não
+`WPA`), nem o IP ou o nome da sua máquina.
+
+Ainda assim, trate-o como segredo enquanto a sessão estiver viva: quem estiver na
+mesma rede local e tiver essa senha pode parear o próprio computador com o seu
+celular. O risco tem prazo curto, porque depende de duas coisas simultâneas: a
+tela de pareamento aberta no celular (é ele quem anuncia o serviço) e o QR ainda
+válido (a sessão expira em 3 minutos). Fora dessa janela a senha não serve para
+nada, e cada sessão gera uma nova.
+
+Nada disso é alcançável de fora da sua rede: o mDNS não atravessa roteador nem
+NAT, e os endereços envolvidos são privados.
 
 ## Autor
 
