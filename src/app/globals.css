@@ -1,0 +1,339 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * Design system caducosilva — tema espacial / sci-fi, sempre dark.
+ * ------------------------------------------------------------------ */
+
+:root {
+  --cosmic-bg: #03010a;
+  --nebula-1: #0a0a1f;
+  --nebula-2: #0f0f2e;
+  --nebula-3: #14143d;
+  --star-blue: #1e90ff;
+  --deep-blue: #0047ab;
+  --nebula-purple: #7b2fbe;
+  --plasma-purple: #b24bf3;
+  --dragon-red: #c0392b;
+  --fire-red: #ff4136;
+  --starlight: #e8eaf6;
+  --moonlight: #9fa8da;
+  --void: #3d3d6b;
+  --glow-blue: #1e90ff33;
+  --glow-purple: #b24bf333;
+}
+
+@theme inline {
+  --color-cosmic-bg: var(--cosmic-bg);
+  --color-nebula-1: var(--nebula-1);
+  --color-nebula-2: var(--nebula-2);
+  --color-nebula-3: var(--nebula-3);
+  --color-star-blue: var(--star-blue);
+  --color-deep-blue: var(--deep-blue);
+  --color-nebula-purple: var(--nebula-purple);
+  --color-plasma-purple: var(--plasma-purple);
+  --color-dragon-red: var(--dragon-red);
+  --color-fire-red: var(--fire-red);
+  --color-starlight: var(--starlight);
+  --color-moonlight: var(--moonlight);
+  --color-void: var(--void);
+
+  --font-display: var(--font-orbitron), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--cosmic-bg);
+  color: var(--starlight);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--glow-purple);
+  color: var(--starlight);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--nebula-1);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--void);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--nebula-purple);
+}
+
+/* ------------------------------------------------------------------ *
+ * Fundo: nebulosas flutuando
+ * ------------------------------------------------------------------ */
+
+.nebula-blob {
+  position: fixed;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+  animation: nebula-drift 26s ease-in-out infinite;
+}
+
+@keyframes nebula-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translate3d(3%, -4%, 0) scale(1.14);
+    opacity: 0.32;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Marca d'agua CADUCOSILVA
+ * ------------------------------------------------------------------ */
+
+.brand-watermark {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.brand-watermark span {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(4rem, 15vw, 13rem);
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  transform: rotate(-22deg);
+  color: var(--starlight);
+  opacity: 0.045;
+}
+
+/* ------------------------------------------------------------------ *
+ * Componentes
+ * ------------------------------------------------------------------ */
+
+.panel {
+  background: color-mix(in srgb, var(--nebula-2) 82%, transparent);
+  border: 1px solid var(--void);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.panel-glow {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--star-blue) 22%, transparent),
+    0 18px 60px -24px var(--glow-blue);
+}
+
+.gradient-text {
+  background: linear-gradient(100deg, var(--star-blue), var(--plasma-purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--void);
+  background: var(--nebula-3);
+  color: var(--starlight);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.25s ease,
+    filter 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.18);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(100deg, var(--deep-blue), var(--nebula-purple));
+  border-color: color-mix(in srgb, var(--star-blue) 45%, transparent);
+  box-shadow: 0 10px 34px -14px var(--glow-blue);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 14px 44px -12px var(--glow-purple);
+}
+
+.btn-danger {
+  background: color-mix(in srgb, var(--dragon-red) 24%, var(--nebula-2));
+  border-color: color-mix(in srgb, var(--dragon-red) 55%, transparent);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 9999px;
+  border: 1px solid var(--void);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+  animation: pulse-dot 2.2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* checkbox de opcao do scrcpy */
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.option-row:hover {
+  background: color-mix(in srgb, var(--nebula-3) 60%, transparent);
+  border-color: var(--void);
+}
+
+.option-row input[type="checkbox"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 5px;
+  border: 1px solid var(--void);
+  background: var(--nebula-1);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.option-row input[type="checkbox"]:checked {
+  background: linear-gradient(120deg, var(--star-blue), var(--plasma-purple));
+  border-color: transparent;
+  box-shadow: 0 0 14px -2px var(--glow-purple);
+}
+
+select,
+input[type="range"] {
+  accent-color: var(--plasma-purple);
+}
+
+select {
+  background: var(--nebula-1);
+  border: 1px solid var(--void);
+  border-radius: 8px;
+  color: var(--starlight);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * Selo da marca (canto inferior direito)
+ * ------------------------------------------------------------------ */
+
+.brand-seal {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.9rem 0.5rem 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid var(--void);
+  background: color-mix(in srgb, var(--nebula-1) 88%, transparent);
+  backdrop-filter: blur(10px);
+  text-decoration: none;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.brand-seal:hover {
+  border-color: color-mix(in srgb, var(--plasma-purple) 60%, transparent);
+  box-shadow: 0 0 30px -6px var(--glow-purple);
+}
+
+.brand-seal-orbit {
+  animation: orbit-spin 9s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nebula-blob,
+  .pill-dot,
+  .brand-seal-orbit {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .brand-seal {
+    right: 0.6rem;
+    bottom: 0.6rem;
+    padding: 0.4rem 0.65rem;
+  }
+  .brand-seal .seal-contact {
+    display: none;
+  }
+}
