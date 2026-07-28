@@ -96,7 +96,7 @@ Se preferir instalar à mão:
 [pt]: https://developer.android.com/tools/releases/platform-tools
 [sc]: https://github.com/Genymobile/scrcpy/releases
 
-⚠️ **No Linux, evite instalar `adb` e `scrcpy` pelo `apt`.** Os dois pacotes da
+**No Linux, evite instalar `adb` e `scrcpy` pelo `apt`.** Os dois pacotes da
 distro têm armadilhas que fazem o app falhar de um jeito difícil de entender —
 veja [Problemas conhecidos](#problemas-conhecidos). Prefira os binários oficiais.
 
