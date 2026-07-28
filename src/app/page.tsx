@@ -60,12 +60,18 @@ export default function Home() {
           <StatusPill tone={status?.adb.found ? "ok" : status ? "bad" : "idle"}>
             {status?.adb.found ? "adb pronto" : status ? "adb não encontrado" : "verificando"}
           </StatusPill>
-          <StatusPill tone={status?.scrcpy.found ? "ok" : status ? "bad" : "idle"}>
-            {status?.scrcpy.found
-              ? "scrcpy pronto"
-              : status
+          <StatusPill
+            tone={
+              !status ? "idle" : !status.scrcpy.found ? "bad" : status.scrcpy.tooOld ? "warn" : "ok"
+            }
+          >
+            {!status
+              ? "verificando"
+              : !status.scrcpy.found
                 ? "scrcpy não encontrado"
-                : "verificando"}
+                : status.scrcpy.tooOld
+                  ? `scrcpy ${status.scrcpy.version} desatualizado`
+                  : "scrcpy pronto"}
           </StatusPill>
           <StatusPill tone={conectado ? "ok" : "idle"}>
             {conectado ? (conectado.model ?? "celular conectado") : "sem celular"}
@@ -77,6 +83,21 @@ export default function Home() {
         <p className="aviso aviso-erro mb-6">
           Não achei o <strong>adb</strong> neste computador. Instale e recarregue a página:{" "}
           <code>{comandoInstalar(status.platform, "adb")}</code>
+        </p>
+      )}
+
+      {status?.scrcpy.found && status.scrcpy.tooOld && (
+        <p className="aviso aviso-erro mb-6">
+          <strong>scrcpy {status.scrcpy.version} é antigo demais.</strong> Essa versão não fala com
+          Android recente e falha com <code>Could not retrieve device information</code>. Instale a
+          2.0 ou mais nova: <code>{comandoInstalar(status.platform, "scrcpy")}</code>
+        </p>
+      )}
+
+      {status?.adb.found && !status.mdns.ok && (
+        <p className="aviso aviso-erro mb-6">
+          <strong>Descoberta mDNS indisponível.</strong> Sem ela o pareamento por QR code não
+          funciona: o celular fica esperando para sempre. {status.mdns.detail}
         </p>
       )}
 

@@ -20,7 +20,9 @@ const COMANDOS: Record<"win32" | "darwin" | "linux", Record<Ferramenta, string>>
   },
   linux: {
     adb: "sudo apt install android-tools-adb",
-    scrcpy: "sudo apt install scrcpy",
+    // De proposito NAO sugerimos `apt install scrcpy`: Debian, Ubuntu e Mint
+    // empacotam o 1.25 (de 2022), que nao fala com Android recente.
+    scrcpy: "baixe a versao mais nova em github.com/Genymobile/scrcpy/releases",
   },
 };
 

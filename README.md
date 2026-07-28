@@ -90,8 +90,15 @@ Se preferir instalar à mão:
 | Ferramenta | Windows | Linux (Debian/Ubuntu/Mint) | macOS |
 | --- | --- | --- | --- |
 | Node.js 20.9+ | <https://nodejs.org> | `sudo apt install nodejs` | `brew install node` |
-| `adb` (Platform Tools) | `winget install Google.PlatformTools` | `sudo apt install android-tools-adb` | `brew install --cask android-platform-tools` |
-| `scrcpy` | `winget install Genymobile.scrcpy` | `sudo apt install scrcpy` | `brew install scrcpy` |
+| `adb` (Platform Tools) | `winget install Google.PlatformTools` | [Platform Tools oficiais][pt] | `brew install --cask android-platform-tools` |
+| `scrcpy` 2.0+ | `winget install Genymobile.scrcpy` | [releases do scrcpy][sc] | `brew install scrcpy` |
+
+[pt]: https://developer.android.com/tools/releases/platform-tools
+[sc]: https://github.com/Genymobile/scrcpy/releases
+
+⚠️ **No Linux, evite instalar `adb` e `scrcpy` pelo `apt`.** Os dois pacotes da
+distro têm armadilhas que fazem o app falhar de um jeito difícil de entender —
+veja [Problemas conhecidos](#problemas-conhecidos). Prefira os binários oficiais.
 
 O `.bat` do Windows ainda instala sozinho o que faltar via `winget`. No Linux e
 no macOS o launcher apenas avisa o que está faltando e mostra o comando certo
@@ -118,22 +125,92 @@ Abra <http://localhost:3000>.
 
 A pasta [`scripts/`](scripts) tem os launchers:
 
-- `0 - Abrir Painel.bat` — launcher do Windows. Instala o que falta via `winget`.
-- `0 - Abrir Painel.sh` — launcher do Linux e do macOS. Confere o que falta e
-  mostra o comando de instalação da sua distro.
-- `painel.mjs` — o miolo, compartilhado pelos dois. É ele que acha a porta
-  livre, sobe o painel, abre o navegador e derruba tudo quando a janela fecha.
-- `1 - Parear Celular.bat` — gera o QR, pareia e conecta sem abrir o painel.
-- `2 - Usar Celular no PC.bat` — conecta e abre o espelhamento sem abrir o painel.
+| Arquivo | Windows | Linux e macOS | O que faz |
+| --- | --- | --- | --- |
+| `0 - Abrir Painel` | `.bat` | `.sh` | Sobe o painel e abre no navegador |
+| `1 - Parear Celular` | `.bat` | `.sh` | Gera o QR, pareia e conecta, sem painel |
+| `2 - Usar Celular no PC` | `.bat` | `.sh` | Conecta e abre o espelhamento, sem painel |
 
-Os dois launchers `0` são casca fina: fazem só a checagem específica do sistema
-e entregam para o `painel.mjs`, então a lógica não vive duplicada.
+Todos são casca fina: fazem só a checagem específica do sistema e entregam para
+um script Node compartilhado, para a lógica não viver duplicada.
 
-Os scripts `1` e `2` são atalhos só de Windows (batch + PowerShell no mesmo
-arquivo) e existem para quem não quer abrir o painel. No Linux não há
-equivalente porque o painel já faz as duas coisas. O `1` usa Python com a
-biblioteca `qrcode` para desenhar o QR; ele instala a lib sozinho na primeira
-execução.
+- `painel.mjs` — acha a porta livre, sobe o painel, abre o navegador e derruba
+  tudo quando a janela fecha.
+- `parear.mjs` — pareamento por QR code.
+- `espelhar.mjs` — conecta e abre o scrcpy.
+- `lib-adb.mjs` — os pedaços de `adb` que os dois últimos compartilham.
+
+No Linux o QR é **desenhado no próprio terminal**, então não precisa de Python
+nem de abrir visualizador de imagem. Os `.bat` do Windows ainda usam Python com
+a biblioteca `qrcode` (instalada sozinha na primeira execução).
+
+O `2` repassa argumentos extras direto para o `scrcpy`:
+
+```bash
+./scripts/"2 - Usar Celular no PC.sh" --turn-screen-off --max-size=1280
+```
+
+## Problemas conhecidos
+
+### O celular fica eternamente em "pareando dispositivo"
+
+O aparelho lê o QR, mostra *pareando dispositivo* e nunca sai disso.
+
+Existe **um único servidor `adb` por máquina** (porta 5037) e quem subiu
+primeiro manda. O pacote `android-tools-adb` do Debian/Ubuntu/Mint é compilado
+**sem descoberta mDNS** — e o `adb` que vem junto do scrcpy, idem. Se um deles
+subiu o servidor, o `adb mdns services` responde vazio para sempre.
+
+O detalhe cruel: essa build também se identifica como `1.0.41`, a mesma versão
+de protocolo das Platform Tools. Como as versões batem, o cliente novo **não**
+reinicia o servidor velho — ele apenas conversa com um servidor cego. Resultado:
+o celular anuncia o pareamento na rede, o PC nunca enxerga o anúncio, nunca roda
+`adb pair`, e o aparelho espera até você desistir.
+
+O app detecta e conserta sozinho: ao abrir o painel ele roda `adb mdns check` e,
+se o servidor em uso não tiver mDNS, reinicia com o `adb` correto. Para conferir
+na mão:
+
+```bash
+adb mdns check
+```
+
+Se não imprimir `mdns daemon version [...]`, é esse o problema. Use as
+[Platform Tools oficiais][pt] em vez do pacote da distro.
+
+### "Could not retrieve device information" ao espelhar
+
+O pareamento funciona, o celular aparece na lista, mas o espelhamento morre com
+`ERROR: Could not retrieve device information`.
+
+É o **scrcpy velho demais**. Debian, Ubuntu e Mint empacotam o `scrcpy 1.25`, de
+2022, que não fala com Android recente. Da versão 2.0 em diante funciona. O
+painel avisa quando detecta uma versão antiga. Confira com:
+
+```bash
+scrcpy --version
+```
+
+Baixe uma versão nova nas [releases oficiais][sc] — o `.tar.gz` de Linux já vem
+compilado, é só extrair e usar:
+
+```bash
+mkdir -p ~/.local/opt/scrcpy ~/.local/bin
+tar xzf scrcpy-linux-x86_64-*.tar.gz -C ~/.local/opt/scrcpy --strip-components=1
+ln -sf ~/.local/opt/scrcpy/scrcpy ~/.local/bin/scrcpy
+```
+
+O app procura em `~/.local/opt/scrcpy` e `~/.local/bin` **antes** de `/usr/bin`,
+justamente para a instalação manual ganhar da versão velha da distro. Não
+precisa desinstalar o pacote do `apt`.
+
+### O mesmo celular aparece duas vezes
+
+Acontece quando o app roda `adb connect <ip:porta>` e o `adb` já tinha conectado
+sozinho pelo serviço mDNS. Aí o mesmo aparelho aparece como `192.168.0.15:44715`
+e como `adb-XXXX._adb-tls-connect._tcp`, e qualquer `adb` sem `-s` morre com
+`more than one device/emulator`. O painel junta os dois automaticamente pelo
+número de série de fábrica.
 
 ## Estrutura
 

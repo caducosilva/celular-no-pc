@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { AdbNotFoundError, listDevices, mdnsServices } from "@/lib/adb";
+import { AdbNotFoundError, listDevicesDeduped, mdnsServices } from "@/lib/adb";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const [devices, services] = await Promise.all([listDevices(), mdnsServices()]);
+    const [devices, services] = await Promise.all([listDevicesDeduped(), mdnsServices()]);
     return NextResponse.json({ devices, services });
   } catch (err) {
     if (err instanceof AdbNotFoundError) {

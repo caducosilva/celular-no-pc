@@ -50,9 +50,15 @@ const ADB_CANDIDATES = [
 const SCRCPY_CANDIDATES = [
   path.join(SCRCPY_WINGET_DIR, "scrcpy-win64-v4.0", "scrcpy.exe"),
   path.join(process.env.ProgramFiles ?? "C:\\Program Files", "scrcpy", "scrcpy.exe"),
+  // Instalacoes manuais vem antes das do sistema de proposito: quem baixou
+  // o scrcpy oficial fez isso justamente porque o pacote da distro e velho
+  // demais (o Debian/Ubuntu/Mint ainda entrega o 1.25, de 2022).
+  path.join(HOME, ".local", "opt", "scrcpy", "scrcpy"),
+  path.join(HOME, ".local", "bin", "scrcpy"),
+  "/opt/scrcpy/scrcpy",
   "/usr/local/bin/scrcpy",
-  "/usr/bin/scrcpy",
   "/opt/homebrew/bin/scrcpy",
+  "/usr/bin/scrcpy",
 ];
 
 /** Resolve um binario pela lista de candidatos, com glob leve de versao. */
@@ -121,6 +127,8 @@ export async function adb(args: string[], timeoutMs = 15_000): Promise<string> {
  * Dispositivos
  * ------------------------------------------------------------------ */
 
+const ESTADOS: Device["state"][] = ["device", "unauthorized", "offline", "connecting"];
+
 export async function listDevices(): Promise<Device[]> {
   const out = await adb(["devices", "-l"]);
   const devices: Device[] = [];
@@ -130,9 +138,19 @@ export async function listDevices(): Promise<Device[]> {
     if (!trimmed || trimmed.startsWith("List of devices")) continue;
     if (trimmed.startsWith("*")) continue; // "* daemon started successfully"
 
-    const [serial, state, ...rest] = trimmed.split(/\s+/);
-    if (!serial || !state) continue;
-    if (!["device", "unauthorized", "offline", "connecting"].includes(state)) continue;
+    // Cuidado: o serial PODE ter espaco. Quando duas instancias mDNS tem o
+    // mesmo nome, o adb desambigua com um sufixo e a linha vira
+    //   adb-RQ...-372ZY9 (2)._adb-tls-connect._tcp   device  model:SM_S938B
+    // Um split cego pegaria "(2)._adb-tls-connect._tcp" como estado e
+    // descartaria a linha — o aparelho sumia do painel mesmo conectado.
+    // Por isso ancoramos no estado e montamos o serial com o que vem antes.
+    const partes = trimmed.split(/\s+/);
+    const indiceEstado = partes.findIndex((p) => ESTADOS.includes(p as Device["state"]));
+    if (indiceEstado < 1) continue;
+
+    const serial = partes.slice(0, indiceEstado).join(" ");
+    const state = partes[indiceEstado] as Device["state"];
+    const rest = partes.slice(indiceEstado + 1);
 
     const model = rest.find((p) => p.startsWith("model:"))?.slice("model:".length) ?? null;
 
@@ -147,8 +165,46 @@ export async function listDevices(): Promise<Device[]> {
   return devices;
 }
 
+/**
+ * Junta entradas que sao o mesmo aparelho fisico.
+ *
+ * Quando a gente roda `adb connect <ip:porta>` e o proprio adb ja tinha
+ * conectado sozinho pelo servico mDNS, o mesmo celular aparece duas vezes:
+ * uma como `192.168.0.15:44715` e outra como
+ * `adb-RQ...-372ZY9._adb-tls-connect._tcp`. Ai o painel diz "2 aparelhos"
+ * e qualquer `adb` sem `-s` morre com "more than one device/emulator".
+ *
+ * O numero de serie de fabrica (`ro.serialno`) e o mesmo nos dois, entao
+ * ele serve de chave. So consultamos quando ha mais de um aparelho pronto
+ * — no caso normal, de um celular so, nao gastamos chamada nenhuma.
+ */
+async function dedupeDevices(devices: Device[]): Promise<Device[]> {
+  const prontos = devices.filter((d) => d.state === "device");
+  if (prontos.length < 2) return devices;
+
+  const vistos = new Map<string, Device>();
+  const outros = devices.filter((d) => d.state !== "device");
+
+  for (const device of prontos) {
+    const saida = await adb(["-s", device.serial, "shell", "getprop", "ro.serialno"], 5_000);
+    const chave = saida.trim() || device.serial;
+    const anterior = vistos.get(chave);
+    // Preferimos o serial ip:porta: e mais curto e e o que o scrcpy aceita
+    // sem drama.
+    if (!anterior || (!/:\d+$/.test(anterior.serial) && /:\d+$/.test(device.serial))) {
+      vistos.set(chave, device);
+    }
+  }
+
+  return [...vistos.values(), ...outros];
+}
+
+export async function listDevicesDeduped(): Promise<Device[]> {
+  return dedupeDevices(await listDevices());
+}
+
 export async function firstReadyDevice(): Promise<Device | null> {
-  const devices = await listDevices();
+  const devices = await listDevicesDeduped();
   return devices.find((d) => d.state === "device") ?? null;
 }
 
@@ -174,6 +230,97 @@ export async function mdnsServices(): Promise<MdnsService[]> {
 export const PAIRING_SERVICE = "_adb-tls-pairing._tcp";
 export const CONNECT_SERVICE = "_adb-tls-connect._tcp";
 
+/* ------------------------------------------------------------------ *
+ * Saude do mDNS
+ *
+ * Aqui mora a armadilha que fazia o celular ficar eternamente em
+ * "pareando dispositivo".
+ *
+ * Existe um servidor adb unico por maquina, na porta 5037, e quem o
+ * iniciou primeiro manda. Varias distros (e o proprio scrcpy) trazem um
+ * `adb` cuja build vem SEM descoberta mDNS funcional — no Debian/Ubuntu/
+ * Mint o pacote `android-tools-adb` e assim.
+ *
+ * O detalhe cruel: essa build tambem se identifica como "1.0.41", a mesma
+ * versao de protocolo do adb das Platform Tools. Como as versoes batem, o
+ * cliente novo NAO reinicia o servidor velho (que e o que ele faria numa
+ * incompatibilidade de verdade) e passa a conversar com um servidor onde
+ * `adb mdns services` responde vazio pra sempre.
+ *
+ * Resultado: o celular le o QR, anuncia o servico na rede e fica
+ * esperando; o PC nunca enxerga o anuncio, nunca roda `adb pair`, e o
+ * aparelho trava em "pareando dispositivo" ate o usuario desistir.
+ *
+ * A checagem abaixo detecta isso e reinicia o servidor com o adb que NOS
+ * escolhemos, que e o que tem mDNS.
+ * ------------------------------------------------------------------ */
+
+export interface MdnsHealth {
+  ok: boolean;
+  /** versao do daemon relatada pelo adb, quando disponivel */
+  daemon: string | null;
+  /** true quando precisamos reiniciar o servidor pra consertar */
+  restarted: boolean;
+  detail: string;
+}
+
+/** `adb mdns check` responde com a versao do daemon quando o mDNS vive. */
+async function mdnsDaemonVersion(): Promise<string | null> {
+  const out = await adb(["mdns", "check"], 10_000);
+  const achado = out.match(/mdns daemon version \[(.+?)\]/i);
+  return achado ? achado[1] : null;
+}
+
+let saudeEmCache: MdnsHealth | null = null;
+
+/**
+ * Garante que o servidor adb em uso enxerga servicos mDNS.
+ * O resultado fica em cache porque reiniciar o servidor derruba as
+ * conexoes sem fio abertas — nao da pra fazer isso a cada poll.
+ */
+export async function ensureMdnsReady(forcar = false): Promise<MdnsHealth> {
+  if (saudeEmCache?.ok && !forcar) return saudeEmCache;
+
+  if (!adbPath()) {
+    saudeEmCache = { ok: false, daemon: null, restarted: false, detail: "adb nao encontrado." };
+    return saudeEmCache;
+  }
+
+  let daemon = await mdnsDaemonVersion();
+  if (daemon) {
+    saudeEmCache = { ok: true, daemon, restarted: false, detail: "mDNS funcionando." };
+    return saudeEmCache;
+  }
+
+  // Servidor sem mDNS: derruba e sobe de novo com o nosso binario.
+  await adb(["kill-server"], 10_000);
+  await adb(["start-server"], 20_000);
+  daemon = await mdnsDaemonVersion();
+
+  saudeEmCache = daemon
+    ? {
+        ok: true,
+        daemon,
+        restarted: true,
+        detail: "O servidor adb em uso nao tinha mDNS; reiniciei com o adb correto.",
+      }
+    : {
+        ok: false,
+        daemon: null,
+        restarted: true,
+        detail:
+          "Este adb nao tem descoberta mDNS. Instale as Platform Tools oficiais do Android " +
+          "(o pacote adb da distro costuma vir sem mDNS) e abra o painel de novo.",
+      };
+
+  return saudeEmCache;
+}
+
+/** Usado quando o usuario manda procurar de novo: refaz a checagem. */
+export function limparCacheMdns(): void {
+  saudeEmCache = null;
+}
+
 /**
  * Conecta no primeiro endpoint de conexao anunciado por mDNS.
  * A porta de conexao muda a cada vez que a depuracao sem fio e religada,
@@ -198,6 +345,37 @@ export async function disconnectAll(): Promise<string> {
 /* ------------------------------------------------------------------ *
  * scrcpy
  * ------------------------------------------------------------------ */
+
+/**
+ * Versao do scrcpy instalado.
+ *
+ * Importa mais do que parece: o scrcpy empacotado pelo Debian/Ubuntu/Mint
+ * costuma ser o 1.25, de 2022, que nao fala com Android recente e falha
+ * com um "Could not retrieve device information" que nao explica nada.
+ * Da 2.0 em diante funciona.
+ */
+export const SCRCPY_MINIMO = 2;
+
+export async function scrcpyVersion(): Promise<{ texto: string | null; maior: number | null }> {
+  const bin = scrcpyPath();
+  if (!bin) return { texto: null, maior: null };
+
+  let saida = "";
+  try {
+    const { stdout, stderr } = await execFileAsync(bin, ["--version"], {
+      timeout: 8_000,
+      windowsHide: true,
+    });
+    saida = `${stdout}${stderr}`;
+  } catch (err) {
+    const e = err as { stdout?: string; stderr?: string };
+    saida = `${e.stdout ?? ""}${e.stderr ?? ""}`;
+  }
+
+  const achado = saida.match(/scrcpy\s+(\d+)\.(\d+)/i);
+  if (!achado) return { texto: null, maior: null };
+  return { texto: `${achado[1]}.${achado[2]}`, maior: Number(achado[1]) };
+}
 
 export class ScrcpyNotFoundError extends Error {
   constructor() {

@@ -58,6 +58,14 @@ export interface PairingSession {
 
 export interface ToolStatus {
   adb: { found: boolean; path: string | null; version: string | null };
-  scrcpy: { found: boolean; path: string | null };
+  scrcpy: {
+    found: boolean;
+    path: string | null;
+    version: string | null;
+    /** true quando a versao e antiga demais pra falar com Android recente */
+    tooOld: boolean;
+  };
+  /** saude da descoberta mDNS — sem ela o pareamento por QR nao funciona */
+  mdns: { ok: boolean; daemon: string | null; restarted: boolean; detail: string };
   platform: string;
 }

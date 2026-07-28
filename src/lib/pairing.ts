@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import {
   adb,
   connectViaMdns,
+  ensureMdnsReady,
   firstReadyDevice,
   mdnsServices,
   PAIRING_SERVICE,
@@ -62,7 +63,8 @@ export async function startPairing(): Promise<PairingSession> {
     errorCorrectionLevel: "M",
     margin: 2,
     scale: 8,
-    color: { dark: "#03010A", light: "#E8EAF6" },
+    // preto no branco puro: contraste maximo pra camera do celular
+    color: { dark: "#000000", light: "#FFFFFF" },
   });
 
   const now = Date.now();
@@ -86,6 +88,19 @@ export async function startPairing(): Promise<PairingSession> {
 }
 
 async function watchPairing(session: InternalSession): Promise<void> {
+  // Sem mDNS vivo nao adianta esperar: o anuncio do celular nunca chega e
+  // o aparelho ficaria preso em "pareando dispositivo" ate o usuario
+  // desistir. Melhor falhar rapido e dizer o porque.
+  const saude = await ensureMdnsReady();
+  if (session.cancelled) return;
+  if (!saude.ok) {
+    session.phase = "error";
+    session.message = saude.detail;
+    return;
+  }
+
+  let tentativasDePair = 0;
+
   while (Date.now() < session.expiresAt) {
     if (session.cancelled) return;
 
@@ -106,6 +121,7 @@ async function watchPairing(session: InternalSession): Promise<void> {
       session.phase = "pairing";
       session.message = `Celular encontrado em ${endpoint}. Pareando...`;
 
+      tentativasDePair++;
       const out = await adb(["pair", endpoint, session.password], 30_000);
 
       if (/Successfully paired/i.test(out)) {
@@ -123,9 +139,19 @@ async function watchPairing(session: InternalSession): Promise<void> {
         return;
       }
 
-      // pareamento pode falhar se o codigo expirar; volta a esperar
+      // Falhou. Pode ser um anuncio antigo que ainda esta no cache do
+      // mDNS, entao vale insistir um pouco — mas nao pra sempre, senao a
+      // gente martela o mesmo endpoint por 3 minutos sem dizer nada.
+      if (tentativasDePair >= 3) {
+        session.phase = "error";
+        session.message =
+          "O celular foi encontrado, mas o pareamento foi recusado. " +
+          "Toque em cancelar no aparelho, gere um novo QR e escaneie de novo.";
+        return;
+      }
+
       session.phase = "waiting";
-      session.message = "Nao consegui parear nesse QR. Gere um novo e tente de novo.";
+      session.message = `Nao consegui parear (tentativa ${tentativasDePair} de 3). Tentando de novo...`;
     }
 
     await sleep(POLL_MS);
