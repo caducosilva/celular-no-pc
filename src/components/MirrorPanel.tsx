@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { comandoInstalar } from "@/lib/instalacao";
 import type { Device, MirrorOptions } from "@/lib/types";
 
 const RESOLUCOES = [
@@ -38,9 +39,12 @@ const OPCOES: { chave: keyof MirrorOptions; rotulo: string; ajuda: string }[] = 
 export default function MirrorPanel({
   device,
   scrcpyOk,
+  plataforma,
 }: {
   device: Device | null;
   scrcpyOk: boolean;
+  /** vem do /api/status; define o comando de instalacao sugerido */
+  plataforma?: string;
 }) {
   const [options, setOptions] = useState<MirrorOptions>({
     maxSize: 0,
@@ -78,16 +82,11 @@ export default function MirrorPanel({
   const bloqueado = !device || !scrcpyOk;
 
   return (
-    <section className="panel p-6">
-      <h2
-        className="mb-4 text-lg font-bold tracking-wide"
-        style={{ fontFamily: "var(--font-display)" }}
-      >
-        Espelhar
-      </h2>
+    <section className="card p-5">
+      <h2 className="card-titulo mb-4">Espelhar</h2>
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <label className="flex flex-col gap-1.5 text-xs text-[var(--moonlight)]">
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        <label className="campo">
           Resolução
           <select
             value={options.maxSize ?? 0}
@@ -103,7 +102,7 @@ export default function MirrorPanel({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1.5 text-xs text-[var(--moonlight)]">
+        <label className="campo">
           Bitrate
           <select
             value={options.bitrate}
@@ -119,7 +118,7 @@ export default function MirrorPanel({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1.5 text-xs text-[var(--moonlight)]">
+        <label className="campo">
           FPS máximo
           <select
             value={options.fps ?? 0}
@@ -145,32 +144,27 @@ export default function MirrorPanel({
               onChange={() => alternar(opcao.chave)}
             />
             <span className="flex flex-col">
-              <span className="text-sm">{opcao.rotulo}</span>
-              <span className="text-xs text-[var(--moonlight)]">{opcao.ajuda}</span>
+              <span className="text-sm leading-snug">{opcao.rotulo}</span>
+              <span className="text-xs text-[var(--texto-fraco)]">{opcao.ajuda}</span>
             </span>
           </label>
         ))}
       </div>
 
-      {mensagem && <p className="mb-4 text-sm text-[var(--star-blue)]">{mensagem}</p>}
-      {erro && (
-        <p className="mb-4 rounded-lg border border-[color-mix(in_srgb,var(--dragon-red)_55%,transparent)] bg-[color-mix(in_srgb,var(--dragon-red)_16%,transparent)] px-4 py-3 text-sm">
-          {erro}
-        </p>
-      )}
+      {mensagem && <p className="aviso aviso-ok mb-4">{mensagem}</p>}
+      {erro && <p className="aviso aviso-erro mb-4">{erro}</p>}
 
       <button className="btn btn-primary w-full" onClick={espelhar} disabled={bloqueado || enviando}>
         {enviando ? "Abrindo..." : "Abrir espelhamento"}
       </button>
 
       {!scrcpyOk && (
-        <p className="mt-3 text-center text-xs text-[var(--moonlight)]">
-          scrcpy não encontrado — instale com{" "}
-          <code className="text-[var(--starlight)]">winget install Genymobile.scrcpy</code>
+        <p className="mt-3 text-center text-xs text-[var(--texto-fraco)]">
+          scrcpy não encontrado — instale com <code>{comandoInstalar(plataforma, "scrcpy")}</code>
         </p>
       )}
       {scrcpyOk && !device && (
-        <p className="mt-3 text-center text-xs text-[var(--moonlight)]">
+        <p className="mt-3 text-center text-xs text-[var(--texto-fraco)]">
           Conecte ou pareie um celular primeiro.
         </p>
       )}

@@ -1,18 +1,9 @@
 import type { Metadata } from "next";
-import { Inter, Orbitron } from "next/font/google";
+import { Inter } from "next/font/google";
 
-import BrandSeal from "@/components/BrandSeal";
-import CosmicBackground from "@/components/CosmicBackground";
 import { BRAND } from "@/lib/brand";
 
 import "./globals.css";
-
-const orbitron = Orbitron({
-  variable: "--font-orbitron",
-  subsets: ["latin"],
-  weight: ["400", "700", "900"],
-  display: "swap",
-});
 
 const inter = Inter({
   variable: "--font-inter",
@@ -26,18 +17,36 @@ export const metadata: Metadata = {
   authors: [{ name: BRAND.name, url: BRAND.github }],
 };
 
+/**
+ * Aplica o tema salvo ANTES da primeira pintura.
+ *
+ * Sem isso a pagina aparece clara por um instante e depois pisca pro
+ * escuro, porque o React so roda depois que o HTML ja foi desenhado.
+ * Sem nada salvo, nao mexemos em nada e o CSS segue o tema do sistema.
+ */
+const SCRIPT_TEMA = `
+(function () {
+  try {
+    var t = localStorage.getItem("tema");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${orbitron.variable} ${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
-        <CosmicBackground />
-        <div className="relative z-10 flex min-h-full flex-1 flex-col">{children}</div>
-        <BrandSeal />
-      </body>
+    // suppressHydrationWarning: o script acima escreve data-theme no <html>
+    // antes do React hidratar, entao o HTML do servidor (sem o atributo) e o
+    // do cliente divergem de proposito. O aviso so vale para este elemento.
+    <html lang="pt-BR" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
+      </head>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

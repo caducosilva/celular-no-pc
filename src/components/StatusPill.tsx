@@ -1,10 +1,11 @@
 type Tone = "ok" | "warn" | "bad" | "idle";
 
-const TONE_COLOR: Record<Tone, string> = {
-  ok: "#1e90ff",
-  warn: "#b24bf3",
-  bad: "#ff4136",
-  idle: "#9fa8da",
+/** Cor so do pontinho — o texto fica sempre na cor normal, pra manter contraste. */
+const COR_DO_PONTO: Record<Tone, string> = {
+  ok: "var(--ok)",
+  warn: "var(--aviso)",
+  bad: "var(--perigo)",
+  idle: "var(--texto-fraco)",
 };
 
 export default function StatusPill({
@@ -15,9 +16,9 @@ export default function StatusPill({
   children: React.ReactNode;
 }) {
   return (
-    <span className="pill" style={{ color: TONE_COLOR[tone] }}>
-      <span className="pill-dot" />
-      <span className="text-[var(--starlight)]">{children}</span>
+    <span className="pill">
+      <span className="pill-dot" style={{ color: COR_DO_PONTO[tone] }} />
+      {children}
     </span>
   );
 }

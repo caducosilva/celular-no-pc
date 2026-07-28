@@ -49,14 +49,9 @@ export default function DevicePanel({
   }
 
   return (
-    <section className="panel panel-glow p-6">
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2
-          className="text-lg font-bold tracking-wide"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Dispositivos
-        </h2>
+    <section className="card p-5">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="card-titulo">Dispositivos</h2>
         <StatusPill tone={devices.some((d) => d.state === "device") ? "ok" : "idle"}>
           {devices.length === 0
             ? "nenhum"
@@ -65,33 +60,23 @@ export default function DevicePanel({
       </header>
 
       {devices.length === 0 ? (
-        <p className="mb-5 rounded-lg border border-dashed border-[var(--void)] px-4 py-6 text-center text-sm text-[var(--moonlight)]">
-          Nenhum celular conectado. Ligue a depuração sem fio e clique em Procurar,
-          <br />
-          ou pareie por QR code se for a primeira vez neste PC.
+        <p className="mb-4 rounded-lg border border-dashed border-[var(--borda-forte)] px-4 py-6 text-center text-sm text-[var(--texto-fraco)]">
+          Nenhum celular conectado. Ligue a depuração sem fio e clique em Procurar, ou pareie por
+          QR code se for a primeira vez neste PC.
         </p>
       ) : (
-        <ul className="mb-5 space-y-2">
+        <ul className="mb-4 space-y-2">
           {devices.map((device) => (
             <li
               key={device.serial}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--void)] bg-[var(--nebula-1)] px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--borda)] bg-[var(--superficie-2)] px-3 py-2.5"
             >
-              <span className="flex flex-col">
-                <span
-                  className="text-sm font-semibold"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {device.model ?? "Android"}
-                </span>
-                <span className="max-w-[42ch] truncate text-xs text-[var(--moonlight)]">
-                  {device.serial}
-                </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="text-sm font-medium">{device.model ?? "Android"}</span>
+                <span className="truncate text-xs text-[var(--texto-fraco)]">{device.serial}</span>
               </span>
-              <span className="flex items-center gap-2">
-                {device.wireless && (
-                  <span className="pill text-[var(--moonlight)]">Wi-Fi</span>
-                )}
+              <span className="flex flex-none items-center gap-2">
+                {device.wireless && <span className="pill">Wi-Fi</span>}
                 <StatusPill tone={device.state === "device" ? "ok" : "bad"}>
                   {ROTULO_ESTADO[device.state]}
                 </StatusPill>
@@ -101,13 +86,9 @@ export default function DevicePanel({
         </ul>
       )}
 
-      {erro && (
-        <p className="mb-4 rounded-lg border border-[color-mix(in_srgb,var(--dragon-red)_55%,transparent)] bg-[color-mix(in_srgb,var(--dragon-red)_16%,transparent)] px-4 py-3 text-sm">
-          {erro}
-        </p>
-      )}
+      {erro && <p className="aviso aviso-erro mb-4">{erro}</p>}
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-2">
         <button className="btn btn-primary" onClick={conectar} disabled={ocupado !== null}>
           {ocupado === "connect" ? "Procurando..." : "Procurar na rede"}
         </button>

@@ -36,8 +36,11 @@ o `scrcpy` a usar um `adb` que funciona, via variável de ambiente `ADB`.
   celular, manter acordado, sem áudio, sempre no topo, somente visualizar.
 - **Detecção dos binários** — encontra `adb` e `scrcpy` em vários caminhos comuns
   (Android SDK, WinGet, Homebrew, `/usr/bin`) e avisa se faltar algum.
-- **Launcher de dois cliques** — `0 - Abrir Painel.bat` instala o que faltar e
-  abre o painel no navegador, sem digitar comando nenhum.
+- **Launcher de dois cliques** — no Windows e no Linux. Acha uma porta livre,
+  abre o painel no navegador padrão e desliga tudo quando a janela fecha, sem
+  digitar comando nenhum.
+- **Interface clean, com tema claro e escuro** — segue o tema do sistema e
+  respeita a troca manual, que fica salva no navegador.
 
 ## Como funciona o pareamento por QR
 
@@ -50,35 +53,51 @@ Feito o pareamento, ele descobre o `_adb-tls-connect._tcp` e conecta.
 A senha do QR é gerada aleatoriamente a cada sessão e **nunca é enviada ao
 navegador** — só a imagem do QR sai do servidor.
 
-## Começo rápido (Windows, dois cliques)
+## Começo rápido (dois cliques)
 
 1. Baixe o projeto: [Code → Download ZIP](https://github.com/caducosilva/celular-no-pc/archive/refs/heads/main.zip)
-   e extraia em qualquer pasta (por exemplo `Downloads\celular-no-pc`).
-2. Abra a pasta `scripts` e dê **dois cliques** em `0 - Abrir Painel.bat`.
-3. Na primeira vez ele instala sozinho o que faltar (Node.js, adb, scrcpy) e
-   baixa as dependências. Pode pedir permissão do Windows e demorar alguns
-   minutos. Nas próximas vezes abre na hora.
-4. O navegador abre em <http://localhost:3000>.
+   e extraia em qualquer pasta.
+2. Abra a pasta `scripts` e dê **dois cliques** no arquivo do seu sistema:
+   - **Windows** — `0 - Abrir Painel.bat`
+   - **Linux e macOS** — `0 - Abrir Painel.sh` (escolha *Executar no terminal*)
+3. Na primeira vez ele baixa as dependências e demora alguns minutos. Nas
+   próximas vezes abre na hora.
+4. O navegador padrão abre sozinho no painel.
 5. No celular: **Configurações → Opções do desenvolvedor → Depuração sem fio**,
    na mesma rede Wi-Fi do PC (rede de convidado / *AP isolation* não funciona).
 
 Pronto. O resto é clicar na interface.
 
-> Se o Windows instalar o Node.js e o `npm` ainda não for reconhecido, feche a
-> janela e abra o `.bat` de novo. É o Windows atualizando o PATH.
+**A janela que abriu o painel é o interruptor dele.** Enquanto ela estiver
+aberta o painel funciona; ao fechá-la (ou com `Ctrl+C`) o servidor cai e a porta
+é liberada na hora — nada fica preso rodando de fundo.
+
+A porta também é escolhida sozinha: ele tenta a `3000` e, se estiver ocupada,
+vai subindo até achar uma livre. Se o painel já estiver no ar, abrir o launcher
+de novo só abre outra aba nele em vez de tentar subir um segundo servidor.
+
+> No Linux, se os dois cliques não oferecerem *Executar no terminal*, marque o
+> arquivo como executável (`chmod +x "scripts/0 - Abrir Painel.sh"`) ou rode-o
+> pelo terminal.
+
+> No Windows, se ele instalar o Node.js e o `npm` ainda não for reconhecido,
+> feche a janela e abra o `.bat` de novo. É o Windows atualizando o PATH.
 
 ## Requisitos
 
 Se preferir instalar à mão:
 
-| Ferramenta | Instalação (Windows) |
-| --- | --- |
-| Node.js 20.9+ | <https://nodejs.org> |
-| `adb` (Platform Tools) | `winget install Google.PlatformTools` |
-| `scrcpy` | `winget install Genymobile.scrcpy` |
+| Ferramenta | Windows | Linux (Debian/Ubuntu/Mint) | macOS |
+| --- | --- | --- | --- |
+| Node.js 20.9+ | <https://nodejs.org> | `sudo apt install nodejs` | `brew install node` |
+| `adb` (Platform Tools) | `winget install Google.PlatformTools` | `sudo apt install android-tools-adb` | `brew install --cask android-platform-tools` |
+| `scrcpy` | `winget install Genymobile.scrcpy` | `sudo apt install scrcpy` | `brew install scrcpy` |
 
-Testado no Windows 11 com um Galaxy S25 Ultra (Android 16). A detecção de
-binários tem caminhos para Linux e macOS, mas o alvo principal é o Windows.
+O `.bat` do Windows ainda instala sozinho o que faltar via `winget`. No Linux e
+no macOS o launcher apenas avisa o que está faltando e mostra o comando certo
+da sua distro — instalar pacote de sistema sem pedir é chato demais.
+
+Testado no Windows 11 e no Linux Mint, com um Galaxy S25 Ultra (Android 16).
 
 ## Uso (via terminal)
 
@@ -95,15 +114,24 @@ Abra <http://localhost:3000>.
    Gere o QR e escaneie com a opção *Parear dispositivo com código QR*.
 3. **Espelhar** — escolha as opções e clique em *Abrir espelhamento*.
 
-### Scripts sem interface
+### Scripts
 
-Quem não quer subir o painel pode usar os `.bat` da pasta [`scripts/`](scripts):
+A pasta [`scripts/`](scripts) tem os launchers:
 
-- `0 - Abrir Painel.bat` — instala o que falta e abre o painel no navegador.
-- `1 - Parear Celular.bat` — gera o QR, pareia e conecta (sem painel).
-- `2 - Usar Celular no PC.bat` — conecta e abre o espelhamento (sem painel).
+- `0 - Abrir Painel.bat` — launcher do Windows. Instala o que falta via `winget`.
+- `0 - Abrir Painel.sh` — launcher do Linux e do macOS. Confere o que falta e
+  mostra o comando de instalação da sua distro.
+- `painel.mjs` — o miolo, compartilhado pelos dois. É ele que acha a porta
+  livre, sobe o painel, abre o navegador e derruba tudo quando a janela fecha.
+- `1 - Parear Celular.bat` — gera o QR, pareia e conecta sem abrir o painel.
+- `2 - Usar Celular no PC.bat` — conecta e abre o espelhamento sem abrir o painel.
 
-São autocontidos (batch + PowerShell no mesmo arquivo). O `1` usa Python com a
+Os dois launchers `0` são casca fina: fazem só a checagem específica do sistema
+e entregam para o `painel.mjs`, então a lógica não vive duplicada.
+
+Os scripts `1` e `2` são atalhos só de Windows (batch + PowerShell no mesmo
+arquivo) e existem para quem não quer abrir o painel. No Linux não há
+equivalente porque o painel já faz as duas coisas. O `1` usa Python com a
 biblioteca `qrcode` para desenhar o QR; ele instala a lib sozinho na primeira
 execução.
 
@@ -121,7 +149,10 @@ src/
   lib/
     adb.ts         localiza binários e executa adb/scrcpy
     pairing.ts     máquina de estados do pareamento por QR
+    instalacao.ts  comando de instalação certo para cada sistema
     types.ts       tipos compartilhados entre cliente e servidor
+scripts/
+  painel.mjs       launcher compartilhado (porta livre, navegador, limpeza)
 ```
 
 ## Segurança

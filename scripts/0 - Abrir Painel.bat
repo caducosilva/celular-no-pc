@@ -112,83 +112,15 @@ if (-not (Tem-Comando "npm")) {
   return
 }
 
+
 # ---------------------------------------------------------------
-# 3. Dependencias do projeto
+# 3. Entrega pro nucleo comum (o mesmo usado no Linux)
 # ---------------------------------------------------------------
+# O painel.mjs cuida do resto: npm install, porta livre, navegador e
+# limpeza. Rodamos ele em PRIMEIRO PLANO nesta janela de proposito:
+# assim, fechar a janela derruba o painel e libera a porta. Antes o
+# servidor subia numa janela separada e ficava rodando sozinho.
 Set-Location $projeto
 
-if (-not (Test-Path (Join-Path $projeto "node_modules"))) {
-  Write-Host ""
-  Write-Host "Primeira execucao: baixando as dependencias. Isso demora alguns minutos." -ForegroundColor Yellow
-  npm install --no-fund --no-audit
-  if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERRO: o npm install falhou. Confira sua conexao e tente de novo." -ForegroundColor Red
-    return
-  }
-}
-
-# ---------------------------------------------------------------
-# 4. Sobe o painel e abre o navegador
-# ---------------------------------------------------------------
-$url = "http://localhost:3000"
-
-$jaNoAr = $false
-try {
-  Invoke-WebRequest -Uri $url -TimeoutSec 2 -UseBasicParsing | Out-Null
-  $jaNoAr = $true
-} catch {
-  $jaNoAr = $false
-}
-
-if ($jaNoAr) {
-  Write-Host ""
-  Write-Host "O painel ja estava aberto. Abrindo no navegador..." -ForegroundColor Green
-  Start-Process $url
-  return
-}
-
 Write-Host ""
-Write-Host "Ligando o painel..." -ForegroundColor Green
-
-$servidor = Start-Process -FilePath "cmd.exe" `
-  -ArgumentList "/c", "npm run dev" `
-  -WorkingDirectory $projeto `
-  -WindowStyle Minimized -PassThru
-
-$pronto = $false
-for ($i = 0; $i -lt 90; $i++) {
-  Start-Sleep -Seconds 1
-  try {
-    Invoke-WebRequest -Uri $url -TimeoutSec 2 -UseBasicParsing | Out-Null
-    $pronto = $true
-    break
-  } catch {
-    # ainda subindo
-  }
-}
-
-if (-not $pronto) {
-  Write-Host "O painel demorou demais pra abrir. Veja a janela minimizada do servidor." -ForegroundColor Red
-  return
-}
-
-Start-Process $url
-
-Write-Host ""
-Write-Host "Pronto! O painel abriu em $url" -ForegroundColor Green
-Write-Host ""
-Write-Host "No celular: Configuracoes > Opcoes do desenvolvedor > Depuracao sem fio" -ForegroundColor DarkGray
-Write-Host "Celular e PC precisam estar na mesma rede Wi-Fi." -ForegroundColor DarkGray
-Write-Host ""
-Write-Host "Deixe a janela minimizada do servidor aberta enquanto estiver usando." -ForegroundColor DarkGray
-Write-Host "Pra desligar o painel, feche aquela janela (ou responda abaixo)." -ForegroundColor DarkGray
-Write-Host ""
-
-$resposta = Read-Host "Quer desligar o painel agora? (s/N)"
-if ($resposta -match '^[sS]') {
-  Stop-Process -Id $servidor.Id -Force -ErrorAction SilentlyContinue
-  Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -like "*next*dev*" } |
-    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-  Write-Host "Painel desligado." -ForegroundColor DarkGray
-}
+& node (Join-Path $PSScriptRoot "painel.mjs")
