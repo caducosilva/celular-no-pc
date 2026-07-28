@@ -18,7 +18,7 @@ export type { PairingPhase, PairingSession } from "@/lib/types";
  *
  * O Android le um QR no formato `WIFI:T:ADB;S:<nome>;P:<senha>;;`.
  * Depois de ler, o aparelho anuncia um servico mDNS `_adb-tls-pairing._tcp`
- * cujo nome de instancia e exatamente o <nome> do QR — e ai basta rodar
+ * cujo nome de instancia e exatamente o <nome> do QR, e ai basta rodar
  * `adb pair <ip:porta> <senha>`. E o mesmo fluxo do Android Studio.
  * ------------------------------------------------------------------ */
 
@@ -140,7 +140,7 @@ async function watchPairing(session: InternalSession): Promise<void> {
       }
 
       // Falhou. Pode ser um anuncio antigo que ainda esta no cache do
-      // mDNS, entao vale insistir um pouco — mas nao pra sempre, senao a
+      // mDNS, entao vale insistir um pouco, mas nao pra sempre, senao a
       // gente martela o mesmo endpoint por 3 minutos sem dizer nada.
       if (tentativasDePair >= 3) {
         session.phase = "error";

@@ -14,7 +14,7 @@ export default function BrandMark() {
       href={BRAND.github}
       target="_blank"
       rel="noreferrer noopener"
-      title={`${BRAND.name} — ${BRAND.contact}`}
+      title={`${BRAND.name}, ${BRAND.contact}`}
     >
       <span
         aria-hidden

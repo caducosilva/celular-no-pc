@@ -142,7 +142,7 @@ export async function listDevices(): Promise<Device[]> {
     // mesmo nome, o adb desambigua com um sufixo e a linha vira
     //   adb-RQ...-372ZY9 (2)._adb-tls-connect._tcp   device  model:SM_S938B
     // Um split cego pegaria "(2)._adb-tls-connect._tcp" como estado e
-    // descartaria a linha — o aparelho sumia do painel mesmo conectado.
+    // descartaria a linha, o aparelho sumia do painel mesmo conectado.
     // Por isso ancoramos no estado e montamos o serial com o que vem antes.
     const partes = trimmed.split(/\s+/);
     const indiceEstado = partes.findIndex((p) => ESTADOS.includes(p as Device["state"]));
@@ -176,7 +176,7 @@ export async function listDevices(): Promise<Device[]> {
  *
  * O numero de serie de fabrica (`ro.serialno`) e o mesmo nos dois, entao
  * ele serve de chave. So consultamos quando ha mais de um aparelho pronto
- * — no caso normal, de um celular so, nao gastamos chamada nenhuma.
+ *, no caso normal, de um celular so, nao gastamos chamada nenhuma.
  */
 async function dedupeDevices(devices: Device[]): Promise<Device[]> {
   const prontos = devices.filter((d) => d.state === "device");
@@ -209,7 +209,7 @@ export async function firstReadyDevice(): Promise<Device | null> {
 }
 
 /* ------------------------------------------------------------------ *
- * mDNS — descoberta na rede local
+ * mDNS, descoberta na rede local
  * ------------------------------------------------------------------ */
 
 export async function mdnsServices(): Promise<MdnsService[]> {
@@ -238,7 +238,7 @@ export const CONNECT_SERVICE = "_adb-tls-connect._tcp";
  *
  * Existe um servidor adb unico por maquina, na porta 5037, e quem o
  * iniciou primeiro manda. Varias distros (e o proprio scrcpy) trazem um
- * `adb` cuja build vem SEM descoberta mDNS funcional — no Debian/Ubuntu/
+ * `adb` cuja build vem SEM descoberta mDNS funcional, no Debian/Ubuntu/
  * Mint o pacote `android-tools-adb` e assim.
  *
  * O detalhe cruel: essa build tambem se identifica como "1.0.41", a mesma
@@ -276,7 +276,7 @@ let saudeEmCache: MdnsHealth | null = null;
 /**
  * Garante que o servidor adb em uso enxerga servicos mDNS.
  * O resultado fica em cache porque reiniciar o servidor derruba as
- * conexoes sem fio abertas — nao da pra fazer isso a cada poll.
+ * conexoes sem fio abertas, nao da pra fazer isso a cada poll.
  */
 export async function ensureMdnsReady(forcar = false): Promise<MdnsHealth> {
   if (saudeEmCache?.ok && !forcar) return saudeEmCache;

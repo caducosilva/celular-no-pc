@@ -15,7 +15,7 @@ export async function GET() {
   }
 
   // Checar aqui, no carregamento do painel, faz o conserto acontecer antes
-  // de o usuario escanear qualquer QR — e nao depois de ele ficar preso
+  // de o usuario escanear qualquer QR, e nao depois de ele ficar preso
   // esperando o pareamento que nunca vem.
   const mdns = adbBin
     ? await ensureMdnsReady()

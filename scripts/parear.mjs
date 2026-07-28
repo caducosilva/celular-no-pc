@@ -3,7 +3,7 @@
  * Parear Celular . criado por caducosilva . contato: abobicarlo@gmail.com
  *
  * Pareia por QR code sem abrir o painel. O QR e desenhado direto no
- * terminal — nada de Python nem de abrir visualizador de imagem.
+ * terminal, nada de Python nem de abrir visualizador de imagem.
  * ------------------------------------------------------------------ */
 
 import { randomBytes } from "node:crypto";
@@ -59,7 +59,7 @@ async function principal() {
   const saude = await garantirMdns();
   if (!saude.ok) {
     console.log(cor.vermelho("ERRO: este adb nao tem descoberta mDNS."));
-    console.log("Sem mDNS o pareamento por QR nao funciona — o celular fica esperando pra sempre.");
+    console.log("Sem mDNS o pareamento por QR nao funciona, o celular fica esperando pra sempre.");
     console.log("Instale as Platform Tools oficiais do Android e rode de novo:");
     console.log(cor.fraco("  https://developer.android.com/tools/releases/platform-tools"));
     process.exitCode = 1;
@@ -85,7 +85,7 @@ async function principal() {
   console.log("");
   console.log(desenho);
   console.log(cor.amarelo("Aponte a camera pro QR acima. Eu pareio sozinho."));
-  console.log(cor.fraco("(ate 3 minutos de espera — Ctrl+C pra cancelar)"));
+  console.log(cor.fraco("(ate 3 minutos de espera, Ctrl+C pra cancelar)"));
   console.log("");
 
   const limite = Date.now() + TIMEOUT_MS;
@@ -108,7 +108,7 @@ async function principal() {
           const aparelho = await primeiroDispositivo();
           if (aparelho) {
             console.log("");
-            console.log(cor.verde(`PRONTO! ${aparelho.modelo ?? "Android"} — ${aparelho.serial}`));
+            console.log(cor.verde(`PRONTO! ${aparelho.modelo ?? "Android"}, ${aparelho.serial}`));
             console.log("Use o atalho 2 pra abrir o espelhamento.");
             return;
           }

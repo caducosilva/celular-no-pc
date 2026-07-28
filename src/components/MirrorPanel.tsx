@@ -160,7 +160,7 @@ export default function MirrorPanel({
 
       {!scrcpyOk && (
         <p className="mt-3 text-center text-xs text-[var(--texto-fraco)]">
-          scrcpy não encontrado — instale com <code>{comandoInstalar(plataforma, "scrcpy")}</code>
+          scrcpy não encontrado, instale com <code>{comandoInstalar(plataforma, "scrcpy")}</code>
         </p>
       )}
       {scrcpyOk && !device && (

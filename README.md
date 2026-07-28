@@ -1,7 +1,7 @@
 # Celular no PC
 
 Painel local para **parear por QR code, conectar e espelhar um celular Android no
-computador — sem cabo**. Um front-end em Next.js + TypeScript por cima do `adb` e
+computador, sem cabo**. Um front-end em Next.js + TypeScript por cima do `adb` e
 do `scrcpy`, feito para quem cansou de decorar `adb pair 192.168.0.x:41234`.
 
 > Roda inteiramente na sua máquina. Nada sai para a internet: o servidor só
@@ -16,7 +16,7 @@ armadilhas:
 
 - a **porta de pareamento e a porta de conexão são diferentes**, e as duas mudam
   toda vez que você liga a depuração sem fio;
-- o `adb pair` exige um `IP:PORTA` completo — digitar só a porta devolve um
+- o `adb pair` exige um `IP:PORTA` completo, digitar só a porta devolve um
   críptico `protocol fault (couldn't read status message)`;
 - no Windows, o `scrcpy` instalado via WinGet costuma morrer com
   `CreateProcessW() error 5 / Could not start adb server`, porque tenta usar o
@@ -28,18 +28,18 @@ o `scrcpy` a usar um `adb` que funciona, via variável de ambiente `ADB`.
 
 ## Recursos
 
-- **Pareamento por QR code** — o app gera o QR, você aponta a câmera, ele detecta
+- **Pareamento por QR code**: o app gera o QR, você aponta a câmera, ele detecta
   o aparelho na rede e pareia sozinho. Sem digitar código de 6 dígitos.
-- **Descoberta automática por mDNS** — nunca mais anote `ip:porta`.
+- **Descoberta automática por mDNS**: nunca mais anote `ip:porta`.
 - **Reconexão em um clique** para aparelhos já pareados.
-- **Espelhamento configurável** — resolução, bitrate, FPS, desligar a tela do
+- **Espelhamento configurável**: resolução, bitrate, FPS, desligar a tela do
   celular, manter acordado, sem áudio, sempre no topo, somente visualizar.
-- **Detecção dos binários** — encontra `adb` e `scrcpy` em vários caminhos comuns
+- **Detecção dos binários**: encontra `adb` e `scrcpy` em vários caminhos comuns
   (Android SDK, WinGet, Homebrew, `/usr/bin`) e avisa se faltar algum.
-- **Launcher de dois cliques** — no Windows e no Linux. Acha uma porta livre,
+- **Launcher de dois cliques**: no Windows e no Linux. Acha uma porta livre,
   abre o painel no navegador padrão e desliga tudo quando a janela fecha, sem
   digitar comando nenhum.
-- **Interface clean, com tema claro e escuro** — segue o tema do sistema e
+- **Interface clean, com tema claro e escuro**: segue o tema do sistema e
   respeita a troca manual, que fica salva no navegador.
 
 ## Como funciona o pareamento por QR
@@ -51,15 +51,15 @@ cujo nome de instância é exatamente o `<nome>` do QR. O servidor observa o
 Feito o pareamento, ele descobre o `_adb-tls-connect._tcp` e conecta.
 
 A senha do QR é gerada aleatoriamente a cada sessão e **nunca é enviada ao
-navegador** — só a imagem do QR sai do servidor.
+navegador**, só a imagem do QR sai do servidor.
 
 ## Começo rápido (dois cliques)
 
 1. Baixe o projeto: [Code → Download ZIP](https://github.com/caducosilva/celular-no-pc/archive/refs/heads/main.zip)
    e extraia em qualquer pasta.
 2. Abra a pasta `scripts` e dê **dois cliques** no arquivo do seu sistema:
-   - **Windows** — `0 - Abrir Painel.bat`
-   - **Linux e macOS** — `0 - Abrir Painel.sh` (escolha *Executar no terminal*)
+   - **Windows**: `0 - Abrir Painel.bat`
+   - **Linux e macOS**: `0 - Abrir Painel.sh` (escolha *Executar no terminal*)
 3. Na primeira vez ele baixa as dependências e demora alguns minutos. Nas
    próximas vezes abre na hora.
 4. O navegador padrão abre sozinho no painel.
@@ -70,7 +70,7 @@ Pronto. O resto é clicar na interface.
 
 **A janela que abriu o painel é o interruptor dele.** Enquanto ela estiver
 aberta o painel funciona; ao fechá-la (ou com `Ctrl+C`) o servidor cai e a porta
-é liberada na hora — nada fica preso rodando de fundo.
+é liberada na hora, nada fica preso rodando de fundo.
 
 A porta também é escolhida sozinha: ele tenta a `3000` e, se estiver ocupada,
 vai subindo até achar uma livre. Se o painel já estiver no ar, abrir o launcher
@@ -97,12 +97,12 @@ Se preferir instalar à mão:
 [sc]: https://github.com/Genymobile/scrcpy/releases
 
 **No Linux, evite instalar `adb` e `scrcpy` pelo `apt`.** Os dois pacotes da
-distro têm armadilhas que fazem o app falhar de um jeito difícil de entender —
+distro têm armadilhas que fazem o app falhar de um jeito difícil de entender,
 veja [Problemas conhecidos](#problemas-conhecidos). Prefira os binários oficiais.
 
 O `.bat` do Windows ainda instala sozinho o que faltar via `winget`. No Linux e
 no macOS o launcher apenas avisa o que está faltando e mostra o comando certo
-da sua distro — instalar pacote de sistema sem pedir é chato demais.
+da sua distro, instalar pacote de sistema sem pedir é chato demais.
 
 Testado no Windows 11 e no Linux Mint, com um Galaxy S25 Ultra (Android 16).
 
@@ -115,11 +115,11 @@ npm run dev
 
 Abra <http://localhost:3000>.
 
-1. **Dispositivos** — clique em *Procurar na rede*. Se o celular já foi pareado
+1. **Dispositivos**, clique em *Procurar na rede*. Se o celular já foi pareado
    neste PC, ele conecta direto.
-2. **Parear por QR code** — só na primeira vez (ou depois de trocar de rede).
+2. **Parear por QR code**, só na primeira vez (ou depois de trocar de rede).
    Gere o QR e escaneie com a opção *Parear dispositivo com código QR*.
-3. **Espelhar** — escolha as opções e clique em *Abrir espelhamento*.
+3. **Espelhar**, escolha as opções e clique em *Abrir espelhamento*.
 
 ### Scripts
 
@@ -134,11 +134,11 @@ A pasta [`scripts/`](scripts) tem os launchers:
 Todos são casca fina: fazem só a checagem específica do sistema e entregam para
 um script Node compartilhado, para a lógica não viver duplicada.
 
-- `painel.mjs` — acha a porta livre, sobe o painel, abre o navegador e derruba
+- `painel.mjs`, acha a porta livre, sobe o painel, abre o navegador e derruba
   tudo quando a janela fecha.
-- `parear.mjs` — pareamento por QR code.
-- `espelhar.mjs` — conecta e abre o scrcpy.
-- `lib-adb.mjs` — os pedaços de `adb` que os dois últimos compartilham.
+- `parear.mjs`, pareamento por QR code.
+- `espelhar.mjs`, conecta e abre o scrcpy.
+- `lib-adb.mjs`, os pedaços de `adb` que os dois últimos compartilham.
 
 No Linux o QR é **desenhado no próprio terminal**, então não precisa de Python
 nem de abrir visualizador de imagem. Os `.bat` do Windows ainda usam Python com
@@ -158,12 +158,12 @@ O aparelho lê o QR, mostra *pareando dispositivo* e nunca sai disso.
 
 Existe **um único servidor `adb` por máquina** (porta 5037) e quem subiu
 primeiro manda. O pacote `android-tools-adb` do Debian/Ubuntu/Mint é compilado
-**sem descoberta mDNS** — e o `adb` que vem junto do scrcpy, idem. Se um deles
+**sem descoberta mDNS**, e o `adb` que vem junto do scrcpy, idem. Se um deles
 subiu o servidor, o `adb mdns services` responde vazio para sempre.
 
 O detalhe cruel: essa build também se identifica como `1.0.41`, a mesma versão
 de protocolo das Platform Tools. Como as versões batem, o cliente novo **não**
-reinicia o servidor velho — ele apenas conversa com um servidor cego. Resultado:
+reinicia o servidor velho, ele apenas conversa com um servidor cego. Resultado:
 o celular anuncia o pareamento na rede, o PC nunca enxerga o anúncio, nunca roda
 `adb pair`, e o aparelho espera até você desistir.
 
@@ -191,7 +191,7 @@ painel avisa quando detecta uma versão antiga. Confira com:
 scrcpy --version
 ```
 
-Baixe uma versão nova nas [releases oficiais][sc] — o `.tar.gz` de Linux já vem
+Baixe uma versão nova nas [releases oficiais][sc], o `.tar.gz` de Linux já vem
 compilado, é só extrair e usar:
 
 ```bash

@@ -61,7 +61,7 @@ async function principal() {
     return;
   }
 
-  console.log(cor.verde(`Conectado: ${aparelho.modelo ?? "Android"} — ${aparelho.serial}`));
+  console.log(cor.verde(`Conectado: ${aparelho.modelo ?? "Android"}, ${aparelho.serial}`));
   console.log(cor.fraco("Abrindo espelhamento... (feche a janela pra encerrar)"));
   console.log("");
 

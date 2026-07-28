@@ -65,7 +65,7 @@ export interface ToolStatus {
     /** true quando a versao e antiga demais pra falar com Android recente */
     tooOld: boolean;
   };
-  /** saude da descoberta mDNS — sem ela o pareamento por QR nao funciona */
+  /** saude da descoberta mDNS, sem ela o pareamento por QR nao funciona */
   mdns: { ok: boolean; daemon: string | null; restarted: boolean; detail: string };
   platform: string;
 }
