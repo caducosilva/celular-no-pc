@@ -232,6 +232,10 @@ scripts/
   painel.mjs       launcher compartilhado (porta livre, navegador, limpeza)
 ```
 
+Antes de mexer no código, vale ler o [CONTRIBUTING.md](CONTRIBUTING.md): ele
+reúne as armadilhas de ambiente que já quebraram o app de formas silenciosas,
+sobretudo em `adb` e `scrcpy` no Linux.
+
 ## Segurança
 
 O servidor executa binários locais, então quem alcança a página consegue parear

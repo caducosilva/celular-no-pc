@@ -1,7 +1,11 @@
-# Celular no PC, notas para agentes
+# Contribuindo
 
 Painel local (Next.js + TypeScript) que pareia por QR code e espelha um Android
 via `adb` + `scrcpy`. Roda inteiramente na máquina do usuário.
+
+Este documento reúne o que você precisa saber antes de mexer no código: as
+armadilhas de ambiente que já quebraram o app, como rodar, a arquitetura e as
+convenções do projeto.
 
 ## Armadilhas de ambiente (leia antes de mexer em adb/scrcpy)
 
