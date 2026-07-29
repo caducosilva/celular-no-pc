@@ -38,16 +38,17 @@ const ADB_CANDIDATES = [
     "adb.exe",
   ),
   path.join(HOME, "platform-tools", "adb.exe"),
-  // ultimo recurso: o adb empacotado com o scrcpy
-  path.join(SCRCPY_WINGET_DIR, "scrcpy-win64-v4.0", "adb.exe"),
   // unix
   path.join(HOME, "Android", "Sdk", "platform-tools", "adb"),
   "/usr/local/bin/adb",
   "/usr/bin/adb",
   "/opt/homebrew/bin/adb",
+  // ultimo recurso: o adb empacotado com o scrcpy (pode falhar no Windows)
+  path.join(SCRCPY_WINGET_DIR, "scrcpy-win64-v4.0", "adb.exe"),
 ];
 
 const SCRCPY_CANDIDATES = [
+  // versao fixa comum no WinGet; o resolveBinary tambem varre a pasta
   path.join(SCRCPY_WINGET_DIR, "scrcpy-win64-v4.0", "scrcpy.exe"),
   path.join(process.env.ProgramFiles ?? "C:\\Program Files", "scrcpy", "scrcpy.exe"),
   // Instalacoes manuais vem antes das do sistema de proposito: quem baixou
@@ -61,23 +62,57 @@ const SCRCPY_CANDIDATES = [
   "/usr/bin/scrcpy",
 ];
 
+/** Procura o executavel no PATH sem preferir o adb empacotado do scrcpy. */
+function whichOnPath(name: string): string | null {
+  const pathEnv = process.env.Path ?? process.env.PATH ?? "";
+  const ext = platform() === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
+  const exeName = platform() === "win32" && !name.endsWith(".exe") ? `${name}.exe` : name;
+  for (const dir of pathEnv.split(path.delimiter)) {
+    if (!dir) continue;
+    // Evita o adb do pacote scrcpy: ele costuma dar CreateProcessW error 5
+    // e pode subir um servidor sem mDNS util.
+    if (name === "adb" && /Genymobile\.scrcpy/i.test(dir)) continue;
+    for (const e of ext) {
+      const full = path.join(dir, platform() === "win32" ? exeName : `${name}${e}`);
+      if (existsSync(full)) return full;
+    }
+  }
+  return null;
+}
+
 /** Resolve um binario pela lista de candidatos, com glob leve de versao. */
 function resolveBinary(candidates: string[], nameOnPath: string): string | null {
   for (const candidate of candidates) {
     if (existsSync(candidate)) return candidate;
   }
+
   // qualquer versao do scrcpy dentro da pasta do WinGet (scrcpy-win64-vX.Y)
-  if (platform() === "win32" && existsSync(SCRCPY_WINGET_DIR)) {
-    const exe = nameOnPath === "scrcpy" ? "scrcpy.exe" : "adb.exe";
+  if (platform() === "win32" && nameOnPath === "scrcpy" && existsSync(SCRCPY_WINGET_DIR)) {
     try {
       for (const dir of readdirSync(SCRCPY_WINGET_DIR)) {
-        const full = path.join(SCRCPY_WINGET_DIR, dir, exe);
+        const full = path.join(SCRCPY_WINGET_DIR, dir, "scrcpy.exe");
         if (existsSync(full)) return full;
       }
     } catch {
       /* pasta some entre o existsSync e o readdir: ignora */
     }
   }
+
+  const fromPath = whichOnPath(nameOnPath);
+  if (fromPath) return fromPath;
+
+  // Ultimo recurso no Windows: adb empacotado com o scrcpy (qualquer versao)
+  if (platform() === "win32" && nameOnPath === "adb" && existsSync(SCRCPY_WINGET_DIR)) {
+    try {
+      for (const dir of readdirSync(SCRCPY_WINGET_DIR)) {
+        const full = path.join(SCRCPY_WINGET_DIR, dir, "adb.exe");
+        if (existsSync(full)) return full;
+      }
+    } catch {
+      /* ignora */
+    }
+  }
+
   return null;
 }
 
