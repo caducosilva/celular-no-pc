@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const { serial: _ignored, ...options } = body;
     void _ignored;
 
-    const pid = launchScrcpy(serial, options);
+    const pid = await launchScrcpy(serial, options);
     return NextResponse.json({ ok: true, serial, pid });
   } catch (err) {
     if (err instanceof ScrcpyNotFoundError || err instanceof AdbNotFoundError) {

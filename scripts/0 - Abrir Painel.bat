@@ -1,5 +1,7 @@
 @echo off
 title Celular no PC - caducosilva
+REM iex nao preenche $PSScriptRoot; o .bat passa a pasta dele via env
+set "CELULAR_SCRIPT_DIR=%~dp0"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((Get-Content -LiteralPath '%~f0' -Raw) -split ('#PS'+'CODE#'),2)[1]"
 echo.
 pause
@@ -29,6 +31,16 @@ function Instalar-Winget([string]$id, [string]$rotulo) {
   Atualizar-Path
 }
 
+# Com iex via .bat, $PSScriptRoot vem vazio. Usa a pasta do .bat.
+$scriptRoot = $null
+if ($env:CELULAR_SCRIPT_DIR -and $env:CELULAR_SCRIPT_DIR.Trim().Length -gt 0) {
+  $scriptRoot = $env:CELULAR_SCRIPT_DIR.TrimEnd('\', '/')
+} elseif ($PSScriptRoot -and $PSScriptRoot.Trim().Length -gt 0) {
+  $scriptRoot = $PSScriptRoot
+} else {
+  $scriptRoot = (Get-Location).Path
+}
+
 Write-Host ""
 Write-Host "Celular no PC . criado por caducosilva . contato: abobicarlo@gmail.com" -ForegroundColor Cyan
 Write-Host "doacoes via PIX: f74458dc-2a36-49bd-9250-1cef4365ebb8" -ForegroundColor DarkGray
@@ -41,7 +53,9 @@ Write-Host ""
 # 1. Onde esta o projeto
 # ---------------------------------------------------------------
 $candidatos = @(
-  (Join-Path $PSScriptRoot ".."),
+  (Join-Path $scriptRoot ".."),
+  (Join-Path $env:USERPROFILE "Desktop\celular-no-pc"),
+  (Join-Path $env:USERPROFILE "OneDrive\Desktop\celular-no-pc"),
   (Join-Path $env:USERPROFILE "dev\celular-no-pc"),
   (Join-Path $env:USERPROFILE "celular-no-pc"),
   (Join-Path $env:USERPROFILE "Downloads\celular-no-pc")
@@ -123,4 +137,4 @@ if (-not (Tem-Comando "npm")) {
 Set-Location $projeto
 
 Write-Host ""
-& node (Join-Path $PSScriptRoot "painel.mjs")
+& node (Join-Path $scriptRoot "painel.mjs")

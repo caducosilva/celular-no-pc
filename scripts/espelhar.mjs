@@ -9,6 +9,7 @@
 import {
   abrirScrcpy,
   adbBin,
+  argsObsPadrao,
   cabecalho,
   conectarPorMdns,
   cor,
@@ -62,13 +63,13 @@ async function principal() {
   }
 
   console.log(cor.verde(`Conectado: ${aparelho.modelo ?? "Android"}, ${aparelho.serial}`));
-  console.log(cor.fraco("Abrindo espelhamento... (feche a janela pra encerrar)"));
+  console.log(cor.fraco("Abrindo resolucao nativa do celular... (feche a janela pra encerrar)"));
   console.log("");
 
-  // Argumentos extras passam direto pro scrcpy:
-  //   ./2 - Usar Celular no PC.sh --turn-screen-off --max-size=1280
+  // Nativo; extras da linha de comando vao depois (ex: --turn-screen-off).
   const extras = process.argv.slice(2);
-  const scrcpy = abrirScrcpy(aparelho.serial, extras);
+  const base = await argsObsPadrao(aparelho.serial);
+  const scrcpy = abrirScrcpy(aparelho.serial, [...base, ...extras]);
 
   await new Promise((resolve) => {
     scrcpy.on("exit", (codigo) => {

@@ -27,9 +27,15 @@ $adb = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 $scrcpy = @(
-  "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe\scrcpy-win64-v4.0\scrcpy.exe",
   "$env:ProgramFiles\scrcpy\scrcpy.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $scrcpy) {
+  $wingetScrcpy = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe'
+  if (Test-Path $wingetScrcpy) {
+    $scrcpy = Get-ChildItem -Path $wingetScrcpy -Filter scrcpy.exe -Recurse -ErrorAction SilentlyContinue |
+      Select-Object -First 1 -ExpandProperty FullName
+  }
+}
 
 if (-not $adb) {
   Write-Host "ERRO: nao achei nenhum adb.exe instalado." -ForegroundColor Red
@@ -48,11 +54,21 @@ $env:ADB = $adb
 Write-Host "adb: $adb" -ForegroundColor DarkGray
 
 function Get-Serial {
+  # Prefere USB (serial sem ip:porta / mDNS); Wi-Fi so se nao houver cabo
+  $usb = $null
+  $wifi = $null
   foreach ($linha in (& $adb devices 2>$null)) {
     $p = $linha -split "\s+"
-    if ($p.Count -ge 2 -and $p[1] -eq "device") { return $p[0] }
+    if ($p.Count -lt 2 -or $p[1] -ne "device") { continue }
+    $s = $p[0]
+    if ($s -match ':\d+$' -or $s -match '_adb-tls-') {
+      if (-not $wifi) { $wifi = $s }
+    } else {
+      if (-not $usb) { $usb = $s }
+    }
   }
-  return $null
+  if ($usb) { return $usb }
+  return $wifi
 }
 
 & $adb start-server 2>&1 | Out-Null
@@ -85,7 +101,14 @@ if (-not $serial) {
 }
 
 Write-Host "Conectado: $serial" -ForegroundColor Green
-Write-Host "Abrindo espelhamento... (feche a janela pra encerrar)" -ForegroundColor Green
+Write-Host "Abrindo resolucao nativa do celular... (feche a janela pra encerrar)" -ForegroundColor Green
 Write-Host ""
 
-& $scrcpy -s $serial --window-title "S25 Ultra - caducosilva"
+# Sem crop / max-size / fps / bitrate: o aparelho define a qualidade.
+$scrcpyArgs = @(
+  '-s', $serial,
+  '--window-title', 'Celular no PC - caducosilva',
+  '--stay-awake'
+)
+
+& $scrcpy @scrcpyArgs

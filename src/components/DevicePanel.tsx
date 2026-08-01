@@ -61,8 +61,8 @@ export default function DevicePanel({
 
       {devices.length === 0 ? (
         <p className="mb-4 rounded-lg border border-dashed border-[var(--borda-forte)] px-4 py-6 text-center text-sm text-[var(--texto-fraco)]">
-          Nenhum celular conectado. Ligue a depuração sem fio e clique em Procurar, ou pareie por
-          QR code se for a primeira vez neste PC.
+          Nenhum celular. Conecte o cabo com depuração USB, ou use Wi-Fi (Procurar na rede / QR) se
+          não tiver cabo.
         </p>
       ) : (
         <ul className="mb-4 space-y-2">
@@ -76,7 +76,11 @@ export default function DevicePanel({
                 <span className="truncate text-xs text-[var(--texto-fraco)]">{device.serial}</span>
               </span>
               <span className="flex flex-none items-center gap-2">
-                {device.wireless && <span className="pill">Wi-Fi</span>}
+                {device.wireless ? (
+                  <span className="pill">Wi-Fi</span>
+                ) : (
+                  <span className="pill">USB</span>
+                )}
                 <StatusPill tone={device.state === "device" ? "ok" : "bad"}>
                   {ROTULO_ESTADO[device.state]}
                 </StatusPill>

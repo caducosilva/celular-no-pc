@@ -5,18 +5,12 @@ import { useState } from "react";
 import { comandoInstalar } from "@/lib/instalacao";
 import type { Device, MirrorOptions } from "@/lib/types";
 
-const RESOLUCOES = [
-  { valor: 0, rotulo: "Original" },
-  { valor: 1920, rotulo: "1920 px" },
-  { valor: 1600, rotulo: "1600 px" },
-  { valor: 1280, rotulo: "1280 px" },
-  { valor: 1024, rotulo: "1024 px" },
-];
-
-const BITRATES = ["4M", "8M", "12M", "16M", "24M"];
-const FPS = [0, 30, 60, 120];
-
 const OPCOES: { chave: keyof MirrorOptions; rotulo: string; ajuda: string }[] = [
+  {
+    chave: "borderless",
+    rotulo: "Janela sem borda",
+    ajuda: "captura limpa no OBS, sem barra de título",
+  },
   {
     chave: "turnScreenOff",
     rotulo: "Desligar a tela do celular",
@@ -28,13 +22,22 @@ const OPCOES: { chave: keyof MirrorOptions; rotulo: string; ajuda: string }[] = 
     ajuda: "impede que a sessão caia por inatividade",
   },
   { chave: "noAudio", rotulo: "Sem áudio", ajuda: "espelha só o vídeo" },
-  { chave: "alwaysOnTop", rotulo: "Janela sempre no topo", ajuda: "fica sobre as outras janelas" },
+  {
+    chave: "alwaysOnTop",
+    rotulo: "Janela sempre no topo",
+    ajuda: "fica sobre as outras janelas",
+  },
   {
     chave: "viewOnly",
     rotulo: "Somente visualizar",
     ajuda: "desliga o controle por teclado e mouse",
   },
 ];
+
+/** Resolucao nativa do aparelho: sem crop, sem forcar fps/bitrate/tamanho. */
+const DEFAULTS: MirrorOptions = {
+  stayAwake: true,
+};
 
 export default function MirrorPanel({
   device,
@@ -46,12 +49,7 @@ export default function MirrorPanel({
   /** vem do /api/status; define o comando de instalacao sugerido */
   plataforma?: string;
 }) {
-  const [options, setOptions] = useState<MirrorOptions>({
-    maxSize: 0,
-    bitrate: "8M",
-    fps: 0,
-    stayAwake: true,
-  });
+  const [options, setOptions] = useState<MirrorOptions>(DEFAULTS);
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -71,7 +69,9 @@ export default function MirrorPanel({
       });
       const dados = await resposta.json();
       if (!resposta.ok) throw new Error(dados.error ?? "Falha ao abrir o espelhamento.");
-      setMensagem("Janela de espelhamento aberta.");
+      setMensagem(
+        "Janela aberta na resolucao nativa do celular (sem crop 9:16). Feche a janela pra encerrar.",
+      );
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Falha ao abrir o espelhamento.");
     } finally {
@@ -85,55 +85,10 @@ export default function MirrorPanel({
     <section className="card p-5">
       <h2 className="card-titulo mb-4">Espelhar</h2>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <label className="campo">
-          Resolução
-          <select
-            value={options.maxSize ?? 0}
-            onChange={(evento) =>
-              setOptions((atual) => ({ ...atual, maxSize: Number(evento.target.value) }))
-            }
-          >
-            {RESOLUCOES.map((item) => (
-              <option key={item.valor} value={item.valor}>
-                {item.rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="campo">
-          Bitrate
-          <select
-            value={options.bitrate}
-            onChange={(evento) =>
-              setOptions((atual) => ({ ...atual, bitrate: evento.target.value }))
-            }
-          >
-            {BITRATES.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="campo">
-          FPS máximo
-          <select
-            value={options.fps ?? 0}
-            onChange={(evento) =>
-              setOptions((atual) => ({ ...atual, fps: Number(evento.target.value) }))
-            }
-          >
-            {FPS.map((item) => (
-              <option key={item} value={item}>
-                {item === 0 ? "Sem limite" : item}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <p className="mb-5 text-sm text-[var(--texto-fraco)]">
+        Usa a resolucao e o FPS nativos do celular. Sem forcar 1080×1920, bitrate nem
+        crop 9:16.
+      </p>
 
       <div className="mb-5 space-y-0.5">
         {OPCOES.map((opcao) => (

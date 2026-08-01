@@ -7,7 +7,7 @@
  * ------------------------------------------------------------------ */
 
 import { execFile, spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -16,6 +16,8 @@ const execFileAsync = promisify(execFile);
 
 const HOME = homedir();
 const EH_WINDOWS = platform() === "win32";
+const LOCALAPPDATA = process.env.LOCALAPPDATA ?? path.join(HOME, "AppData", "Local");
+const WINGET = path.join(LOCALAPPDATA, "Microsoft", "WinGet", "Packages");
 
 export const cor = {
   ciano: (t) => `\x1b[36m${t}\x1b[0m`,
@@ -37,6 +39,13 @@ export const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const CANDIDATOS_ADB = [
   path.join(HOME, "Android", "Sdk", "platform-tools", EH_WINDOWS ? "adb.exe" : "adb"),
+  path.join(LOCALAPPDATA, "Android", "Sdk", "platform-tools", EH_WINDOWS ? "adb.exe" : "adb"),
+  path.join(
+    WINGET,
+    "Google.PlatformTools_Microsoft.Winget.Source_8wekyb3d8bbwe",
+    "platform-tools",
+    "adb.exe",
+  ),
   path.join(HOME, "platform-tools", EH_WINDOWS ? "adb.exe" : "adb"),
   "/usr/local/bin/adb",
   "/opt/homebrew/bin/adb",
@@ -48,18 +57,33 @@ const CANDIDATOS_ADB = [
 const CANDIDATOS_SCRCPY = [
   path.join(HOME, ".local", "opt", "scrcpy", "scrcpy"),
   path.join(HOME, ".local", "bin", "scrcpy"),
+  path.join(process.env.ProgramFiles ?? "C:\\Program Files", "scrcpy", "scrcpy.exe"),
   "/opt/scrcpy/scrcpy",
   "/usr/local/bin/scrcpy",
   "/opt/homebrew/bin/scrcpy",
   "/usr/bin/scrcpy",
 ];
 
+function acharNoWingetScrcpy() {
+  const dir = path.join(WINGET, "Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe");
+  if (!EH_WINDOWS || !existsSync(dir)) return null;
+  try {
+    for (const nome of readdirSync(dir)) {
+      const full = path.join(dir, nome, "scrcpy.exe");
+      if (existsSync(full)) return full;
+    }
+  } catch {
+    /* ignora */
+  }
+  return null;
+}
+
 function resolver(candidatos) {
   return candidatos.find((c) => existsSync(c)) ?? null;
 }
 
 export const adbBin = () => resolver(CANDIDATOS_ADB);
-export const scrcpyBin = () => resolver(CANDIDATOS_SCRCPY);
+export const scrcpyBin = () => resolver(CANDIDATOS_SCRCPY) ?? acharNoWingetScrcpy();
 
 /* ---------------------------------------------------------------- *
  * Execucao
@@ -130,8 +154,14 @@ export async function servicosMdns() {
 
 const ESTADOS = ["device", "unauthorized", "offline", "connecting"];
 
+function ehWifi(serial) {
+  return /:\d+$/.test(serial) || String(serial).includes("_adb-tls-");
+}
+
+/** Primeiro aparelho pronto. Prefere USB; Wi-Fi so se nao houver cabo. */
 export async function primeiroDispositivo() {
   const saida = await adb(["devices", "-l"]);
+  const prontos = [];
   for (const linha of saida.split(/\r?\n/)) {
     const texto = linha.trim();
     if (!texto || texto.startsWith("List of devices") || texto.startsWith("*")) continue;
@@ -146,9 +176,29 @@ export async function primeiroDispositivo() {
 
     const serial = partes.slice(0, indice).join(" ");
     const modelo = partes.slice(indice + 1).find((p) => p.startsWith("model:"))?.slice(6) ?? null;
-    return { serial, modelo: modelo ? modelo.replace(/_/g, " ") : null };
+    prontos.push({
+      serial,
+      modelo: modelo ? modelo.replace(/_/g, " ") : null,
+      wifi: ehWifi(serial),
+    });
   }
-  return null;
+  if (prontos.length === 0) return null;
+
+  const usb = prontos.find((d) => !d.wifi);
+  if (usb) {
+    // Com cabo ativo, corta Wi-Fi/mDNS do mesmo aparelho pra nao competir
+    for (const w of prontos.filter((d) => d.wifi)) {
+      try {
+        await adb(["disconnect", w.serial]);
+      } catch {
+        /* ignore */
+      }
+    }
+    return { serial: usb.serial, modelo: usb.modelo };
+  }
+
+  const escolhido = prontos[0];
+  return { serial: escolhido.serial, modelo: escolhido.modelo };
 }
 
 /** Conecta no endpoint anunciado por mDNS. A porta muda toda vez, por isso nunca fixamos. */
@@ -164,6 +214,50 @@ export async function conectarPorMdns() {
 /* ---------------------------------------------------------------- *
  * scrcpy
  * ---------------------------------------------------------------- */
+
+function par(n) {
+  return n - (n % 2);
+}
+
+/** Crop central width:height:x:y pra proporcao alvo (9:16 no OBS). */
+export function cropParaProporcao(width, height, aspectW, aspectH) {
+  const alvo = aspectW / aspectH;
+  const atual = width / height;
+  let cropW = width;
+  let cropH = height;
+  let x = 0;
+  let y = 0;
+
+  if (atual > alvo) {
+    cropW = par(Math.round(height * alvo));
+    x = par(Math.floor((width - cropW) / 2));
+  } else if (atual < alvo) {
+    cropH = par(Math.round(width / alvo));
+    y = par(Math.floor((height - cropH) / 2));
+  }
+
+  return `${cropW}:${cropH}:${x}:${y}`;
+}
+
+/** Le wm size do aparelho. Prefere Override size quando existe. */
+export async function tamanhoTela(serial) {
+  const saida = await adb(["-s", serial, "shell", "wm", "size"]);
+  const override = saida.match(/Override size:\s*(\d+)x(\d+)/i);
+  const physical = saida.match(/Physical size:\s*(\d+)x(\d+)/i);
+  const achado = override ?? physical;
+  if (!achado) return null;
+  return { width: Number(achado[1]), height: Number(achado[2]) };
+}
+
+/**
+ * Args padrao: resolucao nativa do celular.
+ * Sem crop, sem max-size/fps/bitrate (o aparelho define).
+ * --stay-awake evita que a tela apague durante o uso.
+ */
+export async function argsObsPadrao(_serial) {
+  void _serial;
+  return ["--stay-awake"];
+}
 
 export function abrirScrcpy(serial, argumentosExtras = []) {
   const bin = scrcpyBin();

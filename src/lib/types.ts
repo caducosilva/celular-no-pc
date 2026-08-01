@@ -36,6 +36,20 @@ export interface MirrorOptions {
   alwaysOnTop?: boolean;
   /** somente visualizar, sem controlar */
   viewOnly?: boolean;
+  /**
+   * Corta o video no centro pra proporcao exata (ex: "9:16").
+   * Celulares modernos (19.5:9 etc.) nao sao 9:16; sem o crop o OBS
+   * captura a proporcao nativa e o enquadramento fica errado.
+   */
+  cropAspect?: "9:16";
+  /** crop ja resolvido pro scrcpy: width:height:x:y */
+  crop?: string;
+  /** largura da janela na tela (px). Padrao 9:16 cabe no monitor (~506). */
+  windowWidth?: number;
+  /** altura da janela na tela (px). Padrao 9:16 cabe no monitor (~900). */
+  windowHeight?: number;
+  /** janela sem barra de titulo (cuidado: sem ela fica dificil arrastar/fechar) */
+  borderless?: boolean;
 }
 
 export type PairingPhase =

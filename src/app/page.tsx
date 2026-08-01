@@ -43,7 +43,11 @@ export default function Home() {
     };
   }, [carregarDevices]);
 
-  const conectado = devices.find((device) => device.state === "device") ?? null;
+  // USB (cabo) tem prioridade; Wi-Fi so se nao houver USB pronto
+  const conectado =
+    devices.find((device) => device.state === "device" && !device.wireless) ??
+    devices.find((device) => device.state === "device") ??
+    null;
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
@@ -74,7 +78,9 @@ export default function Home() {
                   : "scrcpy pronto"}
           </StatusPill>
           <StatusPill tone={conectado ? "ok" : "idle"}>
-            {conectado ? (conectado.model ?? "celular conectado") : "sem celular"}
+            {conectado
+              ? `${conectado.wireless ? "Wi-Fi" : "USB"}: ${conectado.model ?? "celular"}`
+              : "sem celular"}
           </StatusPill>
         </div>
       </header>

@@ -203,15 +203,9 @@ export async function listDevices(): Promise<Device[]> {
 /**
  * Junta entradas que sao o mesmo aparelho fisico.
  *
- * Quando a gente roda `adb connect <ip:porta>` e o proprio adb ja tinha
- * conectado sozinho pelo servico mDNS, o mesmo celular aparece duas vezes:
- * uma como `192.168.0.15:44715` e outra como
- * `adb-RQ...-372ZY9._adb-tls-connect._tcp`. Ai o painel diz "2 aparelhos"
- * e qualquer `adb` sem `-s` morre com "more than one device/emulator".
- *
- * O numero de serie de fabrica (`ro.serialno`) e o mesmo nos dois, entao
- * ele serve de chave. So consultamos quando ha mais de um aparelho pronto
- *, no caso normal, de um celular so, nao gastamos chamada nenhuma.
+ * Quando USB e Wi-Fi estao ativos ao mesmo tempo (ou mDNS + adb connect),
+ * o mesmo celular aparece duas vezes. Usamos `ro.serialno` como chave e
+ * preferimos a entrada USB (mais estavel e com menor latencia).
  */
 async function dedupeDevices(devices: Device[]): Promise<Device[]> {
   const prontos = devices.filter((d) => d.state === "device");
@@ -224,9 +218,22 @@ async function dedupeDevices(devices: Device[]): Promise<Device[]> {
     const saida = await adb(["-s", device.serial, "shell", "getprop", "ro.serialno"], 5_000);
     const chave = saida.trim() || device.serial;
     const anterior = vistos.get(chave);
-    // Preferimos o serial ip:porta: e mais curto e e o que o scrcpy aceita
-    // sem drama.
-    if (!anterior || (!/:\d+$/.test(anterior.serial) && /:\d+$/.test(device.serial))) {
+    if (!anterior) {
+      vistos.set(chave, device);
+      continue;
+    }
+    // USB sempre ganha de Wi-Fi
+    if (anterior.wireless && !device.wireless) {
+      vistos.set(chave, device);
+      continue;
+    }
+    // Dois Wi-Fi: preferir ip:porta ao nome mDNS longo
+    if (
+      anterior.wireless &&
+      device.wireless &&
+      anterior.serial.includes("_adb-tls-") &&
+      /:\d+$/.test(device.serial)
+    ) {
       vistos.set(chave, device);
     }
   }
@@ -234,13 +241,73 @@ async function dedupeDevices(devices: Device[]): Promise<Device[]> {
   return [...vistos.values(), ...outros];
 }
 
+/** Ordena: USB prontos primeiro, depois Wi-Fi, depois o resto. */
+function sortPreferUsb(devices: Device[]): Device[] {
+  const rank = (d: Device) => {
+    if (d.state === "device" && !d.wireless) return 0;
+    if (d.state === "device" && d.wireless) return 1;
+    return 2;
+  };
+  return [...devices].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * Se o celular ja esta no cabo, derruba as conexoes Wi-Fi/mDNS do mesmo
+ * aparelho. Assim o painel e o scrcpy nao pegam o transporte sem fio por engano.
+ */
+async function dropWifiWhenUsbPresent(devices: Device[]): Promise<Device[]> {
+  const usbProntos = devices.filter((d) => d.state === "device" && !d.wireless);
+  const wifiProntos = devices.filter((d) => d.state === "device" && d.wireless);
+  if (usbProntos.length === 0 || wifiProntos.length === 0) return devices;
+
+  const serialNos = new Set<string>();
+  for (const usb of usbProntos) {
+    try {
+      const saida = await adb(["-s", usb.serial, "shell", "getprop", "ro.serialno"], 5_000);
+      serialNos.add(saida.trim() || usb.serial);
+    } catch {
+      serialNos.add(usb.serial);
+    }
+  }
+
+  let derrubou = false;
+  for (const wifi of wifiProntos) {
+    let chaveWifi = "";
+    try {
+      const saida = await adb(["-s", wifi.serial, "shell", "getprop", "ro.serialno"], 5_000);
+      chaveWifi = saida.trim();
+    } catch {
+      /* offline / mDNS zumbi */
+    }
+    const mesmoAparelho =
+      (chaveWifi && serialNos.has(chaveWifi)) ||
+      [...serialNos].some((s) => s.length > 4 && wifi.serial.includes(s));
+    if (!mesmoAparelho) continue;
+    try {
+      await adb(["disconnect", wifi.serial], 8_000);
+      derrubou = true;
+    } catch {
+      /* ignora falha de disconnect */
+    }
+  }
+
+  if (!derrubou) return devices;
+  return listDevices();
+}
+
 export async function listDevicesDeduped(): Promise<Device[]> {
-  return dedupeDevices(await listDevices());
+  const brutos = await listDevices();
+  const semWifiDuplicado = await dropWifiWhenUsbPresent(brutos);
+  return sortPreferUsb(await dedupeDevices(semWifiDuplicado));
 }
 
 export async function firstReadyDevice(): Promise<Device | null> {
   const devices = await listDevicesDeduped();
-  return devices.find((d) => d.state === "device") ?? null;
+  return (
+    devices.find((d) => d.state === "device" && !d.wireless) ??
+    devices.find((d) => d.state === "device") ??
+    null
+  );
 }
 
 /* ------------------------------------------------------------------ *
@@ -419,12 +486,106 @@ export class ScrcpyNotFoundError extends Error {
   }
 }
 
+/** Le a resolucao fisica (ou override) do aparelho via `wm size`. */
+export async function devicePhysicalSize(
+  serial: string,
+): Promise<{ width: number; height: number } | null> {
+  const out = await adb(["-s", serial, "shell", "wm", "size"], 5_000);
+  const override = out.match(/Override size:\s*(\d+)x(\d+)/i);
+  const physical = out.match(/Physical size:\s*(\d+)x(\d+)/i);
+  const achado = override ?? physical;
+  if (!achado) return null;
+  return { width: Number(achado[1]), height: Number(achado[2]) };
+}
+
+/** Par impar pra baixo: o encoder do scrcpy prefere dimensoes pares. */
+function par(n: number): number {
+  return n - (n % 2);
+}
+
+/**
+ * Crop central `width:height:x:y` pra uma proporcao alvo (ex: 9:16).
+ * No S25 Ultra (1440x3120) isso vira `1440:2560:0:280`, que com
+ * `--max-size=1920` escala pra exatamente 1080x1920.
+ */
+export function cropForAspect(
+  width: number,
+  height: number,
+  aspectW: number,
+  aspectH: number,
+): string {
+  const alvo = aspectW / aspectH;
+  const atual = width / height;
+  let cropW = width;
+  let cropH = height;
+  let x = 0;
+  let y = 0;
+
+  if (atual > alvo) {
+    cropW = par(Math.round(height * alvo));
+    x = par(Math.floor((width - cropW) / 2));
+  } else if (atual < alvo) {
+    cropH = par(Math.round(width / alvo));
+    y = par(Math.floor((height - cropH) / 2));
+  }
+
+  return `${cropW}:${cropH}:${x}:${y}`;
+}
+
+/**
+ * Janela 9:16 que cabe num monitor 1080p em paisagem.
+ * O video continua em max-size 1920 (textura 1080x1920); a janela e so
+ * a previa. Abrir em 1080x1920 sem borda cobria a tela inteira e
+ * impedia de mexer no PC.
+ */
+const JANELA_9_16_ALTURA = 900;
+const JANELA_9_16_LARGURA = par(Math.round((JANELA_9_16_ALTURA * 9) / 16)); // 506
+
+/**
+ * Completa crop e tamanho da janela quando o usuario pediu 9:16.
+ * Sem o crop o scrcpy abre na proporcao nativa do aparelho e o OBS
+ * nao fica em 9:16.
+ */
+export async function resolveMirrorOptions(
+  serial: string,
+  options: MirrorOptions = {},
+): Promise<MirrorOptions> {
+  const resolved: MirrorOptions = { ...options };
+
+  if (options.cropAspect === "9:16") {
+    if (!resolved.crop) {
+      const size = await devicePhysicalSize(serial);
+      if (size) {
+        resolved.crop = cropForAspect(size.width, size.height, 9, 16);
+      }
+    }
+
+    const ladoMaior = options.maxSize && options.maxSize > 0 ? options.maxSize : 1920;
+    resolved.maxSize = ladoMaior;
+    // Nunca usar 1080x1920 como tamanho de janela: estoura monitores
+    // paisagem. So aplica o tamanho "que cabe" se o cliente nao pediu outro.
+    resolved.windowWidth = resolved.windowWidth ?? JANELA_9_16_LARGURA;
+    resolved.windowHeight = resolved.windowHeight ?? JANELA_9_16_ALTURA;
+    if (!resolved.fps || resolved.fps <= 0) resolved.fps = 60;
+  }
+
+  return resolved;
+}
+
 export function buildScrcpyArgs(serial: string, options: MirrorOptions = {}): string[] {
   const args = ["-s", serial, "--window-title", "Celular no PC - caducosilva"];
 
   if (options.maxSize && options.maxSize > 0) args.push(`--max-size=${options.maxSize}`);
   if (options.bitrate) args.push(`--video-bit-rate=${options.bitrate}`);
   if (options.fps && options.fps > 0) args.push(`--max-fps=${options.fps}`);
+  if (options.crop) args.push(`--crop=${options.crop}`);
+  if (options.windowWidth && options.windowWidth > 0) {
+    args.push(`--window-width=${options.windowWidth}`);
+  }
+  if (options.windowHeight && options.windowHeight > 0) {
+    args.push(`--window-height=${options.windowHeight}`);
+  }
+  if (options.borderless) args.push("--window-borderless");
   if (options.turnScreenOff) args.push("--turn-screen-off");
   if (options.stayAwake) args.push("--stay-awake");
   if (options.noAudio) args.push("--no-audio");
@@ -435,14 +596,18 @@ export function buildScrcpyArgs(serial: string, options: MirrorOptions = {}): st
 }
 
 /** Sobe o scrcpy desacoplado do servidor: fechar o app nao fecha a janela. */
-export function launchScrcpy(serial: string, options: MirrorOptions = {}): number | undefined {
+export async function launchScrcpy(
+  serial: string,
+  options: MirrorOptions = {},
+): Promise<number | undefined> {
   const bin = scrcpyPath();
   if (!bin) throw new ScrcpyNotFoundError();
 
   const adbBin = adbPath();
   if (!adbBin) throw new AdbNotFoundError();
 
-  const child = spawn(bin, buildScrcpyArgs(serial, options), {
+  const resolved = await resolveMirrorOptions(serial, options);
+  const child = spawn(bin, buildScrcpyArgs(serial, resolved), {
     detached: true,
     stdio: "ignore",
     windowsHide: false,

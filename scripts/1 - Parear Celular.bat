@@ -35,11 +35,21 @@ $env:ADB = $adb
 Write-Host "adb: $adb" -ForegroundColor DarkGray
 
 function Get-Serial {
+  # Prefere USB; Wi-Fi so se nao houver cabo
+  $usb = $null
+  $wifi = $null
   foreach ($linha in (& $adb devices 2>$null)) {
     $p = $linha -split "\s+"
-    if ($p.Count -ge 2 -and $p[1] -eq "device") { return $p[0] }
+    if ($p.Count -lt 2 -or $p[1] -ne "device") { continue }
+    $s = $p[0]
+    if ($s -match ':\d+$' -or $s -match '_adb-tls-') {
+      if (-not $wifi) { $wifi = $s }
+    } else {
+      if (-not $usb) { $usb = $s }
+    }
   }
-  return $null
+  if ($usb) { return $usb }
+  return $wifi
 }
 
 & $adb start-server 2>&1 | Out-Null
