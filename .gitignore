@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -10,32 +8,80 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# testing / coverage
 /coverage
+/playwright-report
+/test-results
+_test_*.mts
+_test_*.ts
+_test_*.js
+_test_*.mjs
 
 # next.js
 /.next/
 /out/
+/dist/
 
 # production
 /build
 
-# misc
-.DS_Store
+# env e segredos (nunca subir)
+.env
+.env.*
+!.env.example
 *.pem
+*.key
+*.p12
+*.pfx
+*credentials*
+*secret*
+*token*.json
+!.github/**
 
-# debug
+# vercel / deploy local
+.vercel
+
+# typescript / build info
+*.tsbuildinfo
+next-env.d.ts
+
+# logs e debug
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# SO
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
-# vercel
-.vercel
+# editores / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# Cursor / agentes locais
+.cursor/
+.opencode/
+
+# adb / android local (nunca versionar chaves do aparelho)
+adbkey
+adbkey.pub
+*.apk
+*.apks
+*.aab
+
+# scrcpy / capturas locais
+*.mp4
+*.mkv
+recordings/
+captures/
