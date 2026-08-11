@@ -1,87 +1,33 @@
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing / coverage
-/coverage
-/playwright-report
-/test-results
-_test_*.mts
-_test_*.ts
-_test_*.js
-_test_*.mjs
-
-# next.js
-/.next/
-/out/
-/dist/
-
-# production
-/build
-
-# env e segredos (nunca subir)
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.p12
-*.pfx
-*credentials*
-*secret*
+# Credenciais e sessões — NUNCA versionar
+*.env
+.env*
+credentials*.json
 *token*.json
-!.github/**
+*api*key*.json
+cookies/
+*.cookies
+cookies.txt
+*-profile/
 
-# vercel / deploy local
-.vercel
-
-# typescript / build info
-*.tsbuildinfo
-next-env.d.ts
-
-# logs e debug
+# Dados pessoais
+*.db
+*.sqlite*
+config.json
 logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
 
-# SO
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# editores / IDE
+# Python / Node / Flutter / Android
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+dist/
+.next/
 .idea/
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-*.swp
-*.swo
-*~
+.gradle/
+build/
 
-# Cursor / agentes locais
-.cursor/
-.opencode/
-
-# adb / android local (nunca versionar chaves do aparelho)
-adbkey
-adbkey.pub
-*.apk
-*.apks
-*.aab
-
-# scrcpy / capturas locais
-*.mp4
-*.mkv
-recordings/
-captures/
+# Sistema
+desktop.ini
+Thumbs.db
+.DS_Store
