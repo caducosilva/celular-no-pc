@@ -71,6 +71,24 @@ async function principal() {
   const base = await argsObsPadrao(aparelho.serial);
   const scrcpy = abrirScrcpy(aparelho.serial, [...base, ...extras]);
 
+  // No Windows o start devolve na hora; espera o processo scrcpy aparecer.
+  if (process.platform === "win32") {
+    await esperar(2000);
+    console.log(cor.verde("Janela do scrcpy deve estar aberta. Feche-a pra encerrar."));
+    // Mantem o .bat/atalho vivo ate o usuario fechar o scrcpy.
+    for (;;) {
+      const { spawnSync } = await import("node:child_process");
+      const { stdout } = spawnSync(
+        "tasklist",
+        ["/FI", "IMAGENAME eq scrcpy.exe", "/NH"],
+        { encoding: "utf8", windowsHide: true },
+      );
+      if (!/scrcpy\.exe/i.test(stdout ?? "")) break;
+      await esperar(1500);
+    }
+    return;
+  }
+
   await new Promise((resolve) => {
     scrcpy.on("exit", (codigo) => {
       if (codigo) process.exitCode = codigo;

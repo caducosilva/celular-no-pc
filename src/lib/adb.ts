@@ -1,6 +1,6 @@
-import { execFile, spawn } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
-import { homedir, platform } from "node:os";
+import { execFile, spawn, spawnSync } from "node:child_process";
+import { existsSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { homedir, platform, tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -595,7 +595,36 @@ export function buildScrcpyArgs(serial: string, options: MirrorOptions = {}): st
   return args;
 }
 
-/** Sobe o scrcpy desacoplado do servidor: fechar o app nao fecha a janela. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** True se ainda existe um processo scrcpy nesta maquina. */
+function scrcpyProcessAlive(): boolean {
+  try {
+    if (platform() === "win32") {
+      const { stdout } = spawnSync(
+        "tasklist",
+        ["/FI", "IMAGENAME eq scrcpy.exe", "/NH"],
+        { encoding: "utf8", windowsHide: true },
+      );
+      return /scrcpy\.exe/i.test(String(stdout ?? ""));
+    }
+    const { status } = spawnSync("pgrep", ["-x", "scrcpy"], { windowsHide: true });
+    return status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sobe o scrcpy fora da arvore do Next.
+ *
+ * No Windows o spawn(detached) direto do `next dev` sobe o processo e ele
+ * morre na hora (janela nao aparece, API mentia que abriu). A solucao
+ * estavel e um .bat temporario com `set ADB=...` + `start /D pasta`, pra
+ * herdar o adb certo e achar as DLLs do scrcpy.
+ */
 export async function launchScrcpy(
   serial: string,
   options: MirrorOptions = {},
@@ -607,15 +636,102 @@ export async function launchScrcpy(
   if (!adbBin) throw new AdbNotFoundError();
 
   const resolved = await resolveMirrorOptions(serial, options);
-  const child = spawn(bin, buildScrcpyArgs(serial, resolved), {
+  const args = buildScrcpyArgs(serial, resolved);
+  const cwd = path.dirname(bin);
+  const env = { ...process.env, ADB: adbBin };
+
+  if (platform() === "win32") {
+    const bat = path.join(
+      tmpdir(),
+      `celular-no-pc-scrcpy-${Date.now()}-${process.pid}.bat`,
+    );
+    // start "titulo" /D pasta exe args
+    const quotedArgs = args.map((a) => `"${a.replace(/"/g, "")}"`).join(" ");
+    const conteudo = [
+      "@echo off",
+      `set "ADB=${adbBin}"`,
+      `start "Celular no PC" /D "${cwd}" "${bin}" ${quotedArgs}`,
+      "",
+    ].join("\r\n");
+    writeFileSync(bat, conteudo, "utf8");
+
+    try {
+      const child = spawn("cmd.exe", ["/c", bat], {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+        env,
+      });
+      child.unref();
+
+      await sleep(2_500);
+      if (!scrcpyProcessAlive()) {
+        const detalhe = await probeScrcpyFailure(bin, args, cwd, env);
+        throw new Error(
+          detalhe ||
+            "O scrcpy abriu e fechou na hora. Confira o cabo/USB debugging e tente de novo.",
+        );
+      }
+      return child.pid;
+    } finally {
+      try {
+        unlinkSync(bat);
+      } catch {
+        /* bat pode ainda estar em uso por uma fracao de segundo */
+      }
+    }
+  }
+
+  const child = spawn(bin, args, {
     detached: true,
     stdio: "ignore",
-    windowsHide: false,
-    // sem isso o scrcpy tenta usar o adb da propria pasta e morre
-    // com CreateProcessW() error 5 no Windows
-    env: { ...process.env, ADB: adbBin },
+    cwd,
+    env,
   });
-
   child.unref();
+
+  await sleep(1_500);
+  if (child.exitCode !== null && child.exitCode !== 0) {
+    throw new Error(`scrcpy encerrou com codigo ${child.exitCode}.`);
+  }
   return child.pid;
+}
+
+/** Roda o scrcpy uma vez preso pra coletar a mensagem de erro. */
+async function probeScrcpyFailure(
+  bin: string,
+  args: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+): Promise<string> {
+  return new Promise((resolve) => {
+    const child = spawn(bin, args, {
+      cwd,
+      env,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let out = "";
+    const append = (chunk: Buffer) => {
+      out += chunk.toString("utf8");
+    };
+    child.stdout?.on("data", append);
+    child.stderr?.on("data", append);
+    const timer = setTimeout(() => {
+      try {
+        child.kill();
+      } catch {
+        /* ja morreu */
+      }
+      resolve(out.trim().slice(-800));
+    }, 4_000);
+    child.on("exit", () => {
+      clearTimeout(timer);
+      resolve(out.trim().slice(-800));
+    });
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      resolve(err.message);
+    });
+  });
 }

@@ -70,7 +70,7 @@ export default function MirrorPanel({
       const dados = await resposta.json();
       if (!resposta.ok) throw new Error(dados.error ?? "Falha ao abrir o espelhamento.");
       setMensagem(
-        "Janela aberta na resolucao nativa do celular (sem crop 9:16). Feche a janela pra encerrar.",
+        "Janela do scrcpy aberta na resolucao nativa. Feche a janela pra encerrar.",
       );
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Falha ao abrir o espelhamento.");

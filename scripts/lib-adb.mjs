@@ -7,8 +7,8 @@
  * ------------------------------------------------------------------ */
 
 import { execFile, spawn } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
-import { homedir, platform } from "node:os";
+import { existsSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { homedir, platform, tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -262,16 +262,42 @@ export async function argsObsPadrao(_serial) {
 export function abrirScrcpy(serial, argumentosExtras = []) {
   const bin = scrcpyBin();
   if (!bin) throw new Error("scrcpy nao encontrado.");
-  return spawn(
-    bin,
-    ["-s", serial, "--window-title", "Celular no PC - caducosilva", ...argumentosExtras],
-    {
-      stdio: "inherit",
-      // o scrcpy le ADB do ambiente; sem isso ele pode pegar um adb
-      // diferente do nosso e brigar pelo servidor da porta 5037
-      env: { ...process.env, ADB: adbBin() },
-    },
-  );
+  const adb = adbBin();
+  const cwd = path.dirname(bin);
+  const args = ["-s", serial, "--window-title", "Celular no PC - caducosilva", ...argumentosExtras];
+  const env = { ...process.env, ADB: adb };
+
+  if (EH_WINDOWS) {
+    const bat = path.join(tmpdir(), `celular-no-pc-scrcpy-${Date.now()}-${process.pid}.bat`);
+    const quotedArgs = args.map((a) => `"${String(a).replace(/"/g, "")}"`).join(" ");
+    writeFileSync(
+      bat,
+      [`@echo off`, `set "ADB=${adb}"`, `start "Celular no PC" /D "${cwd}" "${bin}" ${quotedArgs}`, ""].join(
+        "\r\n",
+      ),
+      "utf8",
+    );
+    const child = spawn("cmd.exe", ["/c", bat], {
+      stdio: "ignore",
+      detached: true,
+      windowsHide: true,
+      env,
+    });
+    child.on("exit", () => {
+      try {
+        unlinkSync(bat);
+      } catch {
+        /* ignore */
+      }
+    });
+    return child;
+  }
+
+  return spawn(bin, args, {
+    stdio: "inherit",
+    cwd,
+    env,
+  });
 }
 
 export function cabecalho(titulo) {
